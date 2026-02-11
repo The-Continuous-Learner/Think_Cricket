@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: cricket-app
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/cricket?useSSL=false&serverTimezone=UTC
+    username: myapp_user
+    password: StrongPassword123!
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate: {}
