@@ -29,5 +29,9 @@ public class PlayerService {
         return playerRepository.findAll();
     }
 
+    public List<Player> getPlayersByName(String name) {
+        return playerRepository.findByName(name);
+    }
+
 }
 

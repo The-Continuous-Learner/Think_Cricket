@@ -40,4 +40,12 @@ public class PlayerController {
         return ResponseEntity.ok(playerService.getAllPlayers());
     }
 
+    @GetMapping("/get-players-by-name/{name}")
+    public ResponseEntity<List<Player>> getPlayersByName(@PathVariable String name) {
+        List<Player> players = playerService.getPlayersByName(name);
+        return players != null && !players.isEmpty() 
+            ? ResponseEntity.ok(players) 
+            : ResponseEntity.notFound().build();
+    }
+
 }
