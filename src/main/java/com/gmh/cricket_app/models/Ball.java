@@ -1,13 +1,15 @@
 package com.gmh.cricket_app.models;
 
-import java.time.LocalDateTime;
+import java.util.UUID;
 
-import com.gmh.cricket_app.models.enums.DismissalType;
 import com.gmh.cricket_app.models.enums.ExtraType;
 
+import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,49 +17,40 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+@Entity
 @AllArgsConstructor
 @NoArgsConstructor
 @Setter
 @Getter
 @ToString
 public class Ball {
+
     @Id
-    private String id;
+    private String id; // matchId-INN-1-OVER-5-BALL-3
 
-    private int batsmanRun;
+    private String matchId;
+    private String inningsId;
+    private String overId;
 
-    private int extraRun;
+    private int inningsNumber;
+    private int overNumber;
+    private int ballNumber;
+
+    private boolean legalDelivery;
+    private int runs;
 
     @Enumerated(EnumType.STRING)
     private ExtraType extraType;
 
-    private String batsmanId; 
-
+    private String batsmanId;
     private String nonStrikerId;
-
-    private String bowlerId;
-    
-    private boolean legalDelivery; 
-
-    private String overId; 
-
-    private int ballNumber;
 
     private boolean wicket;
 
-    @Enumerated(EnumType.STRING)
-    private DismissalType dismissalType; 
-    private String dismissedBatsmanId;
-    private String fielderId; 
+    @OneToOne
+    private Wicket wicketInfo;
 
-    private boolean freeHit;
-
-    private LocalDateTime timestamp;
-
-
-    @PrePersist
-    public void generateId() {
-        this.id = overId + "-" + ballNumber;
-        this.timestamp = LocalDateTime.now();
-    }
+    @ManyToOne
+    private Over over;
 }
+
