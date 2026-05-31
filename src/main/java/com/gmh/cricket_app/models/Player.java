@@ -38,6 +38,8 @@ public class Player {
 
     @PrePersist
     public void generateId() {
-        this.id = UUID.randomUUID().toString();
+        if (this.id == null) {
+            this.id = UUID.randomUUID().toString().substring(0, 10).toUpperCase();
+        }
     }
 }
