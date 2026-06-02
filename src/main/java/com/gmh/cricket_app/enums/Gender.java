@@ -1,4 +1,4 @@
-package com.gmh.cricket_app.models.enums;
+package com.gmh.cricket_app.enums;
 
 public enum Gender {
    Male,

@@ -3,7 +3,7 @@ package com.gmh.cricket_app.models;
 import java.util.Date;
 import java.util.UUID;
 
-import com.gmh.cricket_app.models.enums.MatchStatus;
+import com.gmh.cricket_app.enums.MatchStatus;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

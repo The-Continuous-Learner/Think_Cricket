@@ -2,15 +2,16 @@ package com.gmh.cricket_app.models;
 
 import java.util.UUID;
 
-import com.gmh.cricket_app.models.enums.ExtraType;
+import com.gmh.cricket_app.enums.ExtraType;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
-import jakarta.persistence.PrePersist;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,6 +31,8 @@ public class Ball {
 
     private String matchId;
     private String inningsId;
+
+    @Column(name = "over_id", insertable = false, updatable = false)
     private String overId;
 
     private int inningsNumber;
@@ -51,6 +54,7 @@ public class Ball {
     private Wicket wicketInfo;
 
     @ManyToOne
+    @JoinColumn(name = "over_id")
     private Over over;
 }
 

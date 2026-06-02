@@ -1,6 +1,6 @@
 package com.gmh.cricket_app.models;
 
-import com.gmh.cricket_app.models.enums.WicketType;
+import com.gmh.cricket_app.enums.WicketType;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

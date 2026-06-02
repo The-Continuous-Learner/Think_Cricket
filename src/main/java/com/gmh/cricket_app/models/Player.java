@@ -2,8 +2,8 @@ package com.gmh.cricket_app.models;
 
 import java.util.UUID;
 
-import com.gmh.cricket_app.models.enums.Gender;
-import com.gmh.cricket_app.models.enums.PlayerTypes;
+import com.gmh.cricket_app.enums.Gender;
+import com.gmh.cricket_app.enums.PlayerTypes;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
