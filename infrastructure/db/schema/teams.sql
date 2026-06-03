@@ -1,6 +1,5 @@
-CREATE TABLE teams (
-    id VARCHAR(64) NOT NULL,
-    name VARCHAR(150) NOT NULL,
-
-    PRIMARY KEY (id)
+CREATE TABLE team (
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT
 );

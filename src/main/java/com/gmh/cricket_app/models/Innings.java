@@ -3,6 +3,8 @@ package com.gmh.cricket_app.models;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.gmh.cricket_app.models.team.Team;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;

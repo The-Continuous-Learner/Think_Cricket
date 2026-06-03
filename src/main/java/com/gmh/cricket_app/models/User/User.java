@@ -1,10 +1,13 @@
 package com.gmh.cricket_app.models.User;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.*;
 
 @Entity
+@Table(name = "User")
 @AllArgsConstructor
 @NoArgsConstructor
 @Setter
@@ -13,12 +16,13 @@ import lombok.*;
 public class User {
 
     @Id
-    private String id; // UUID
+    private String id;
 
     private String username;
     private String email;
 
-    private String passwordHash; // store only hashed password
+    @Column(name = "password_hash")
+    private String passwordHash;
 
-    private boolean verified; // for future email verification
+    private boolean verified;
 }

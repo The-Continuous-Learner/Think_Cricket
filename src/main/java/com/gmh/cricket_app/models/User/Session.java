@@ -21,7 +21,7 @@ public class Session {
     @Column(name = "created_at", nullable = false)
     private long createdAt;
 
-    @Column(name = "expires_at")
+    @Column(name = "expires_at", nullable = false)
     private long expiresAt;
 
     public Session(String token, String userId, long expiresAt) {

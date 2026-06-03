@@ -12,11 +12,12 @@ import com.gmh.cricket_app.exceptions.BadRequestException;
 import com.gmh.cricket_app.models.Match;
 import com.gmh.cricket_app.models.User.User;
 import com.gmh.cricket_app.repositories.MatchRepository;
+import com.gmh.cricket_app.repositories.TeamRepository;
+import com.gmh.cricket_app.util.CommonUtil;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,23 +25,33 @@ public class MatchService {
 
     private final MatchRepository matchRepo;
     private final SessionService sessionService;
+    private final TeamRepository teamRepo;
 
     @Value("${cricket.match.id-length}")
     private int matchIdLength;
-    
-    private String generateMatchId() {
-        String uuid = UUID.randomUUID().toString().replace("-", "");
-        return uuid.substring(0, Math.min(matchIdLength, uuid.length()));
-    }
 
     public HostMatchResponse hostMatch(HostMatchRequest req) {
 
-        // Validate session
         User user = sessionService.validateSession(req.getSessionToken());
+
+        // Validate team A
+        if (!teamRepo.existsById(req.getTeamAId())) {
+            throw new BadRequestException("Team A does not exist: " + req.getTeamAId());
+        }
+
+        // Validate team B
+        if (!teamRepo.existsById(req.getTeamBId())) {
+            throw new BadRequestException("Team B does not exist: " + req.getTeamBId());
+        }
+
+        // Prevent same team on both sides
+        if (req.getTeamAId().equals(req.getTeamBId())) {
+            throw new BadRequestException("Team A and Team B cannot be the same");
+        }
 
         // Create match
         Match match = new Match();
-        match.setId(generateMatchId());
+        match.setId(CommonUtil.generateId(matchIdLength));
         match.setTeamAId(req.getTeamAId());
         match.setTeamBId(req.getTeamBId());
         match.setFormat(req.getFormat());
@@ -52,6 +63,7 @@ public class MatchService {
 
         return new HostMatchResponse(match.getId(), match.getStatus());
     }
+
 
     public StartMatchResponse startMatch(StartMatchRequest req) {
 
