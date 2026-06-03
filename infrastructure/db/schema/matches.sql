@@ -1,20 +1,18 @@
 CREATE TABLE matches (
-    id VARCHAR(64) NOT NULL,
+    id VARCHAR(64) PRIMARY KEY,
+
     team_a_id VARCHAR(64) NOT NULL,
     team_b_id VARCHAR(64) NOT NULL,
 
-    overs INT NOT NULL,
-    status VARCHAR(50) NOT NULL,
+    format VARCHAR(20) NOT NULL,
 
-    toss_winner_team_id VARCHAR(64),
-    toss_decision VARCHAR(10),
+    status VARCHAR(20) NOT NULL,
+
+    planned_start_time BIGINT NOT NULL,
+    actual_start_time BIGINT,
+    actual_end_time BIGINT,
 
     hosted_by_user_id VARCHAR(64) NOT NULL,
-
-    PRIMARY KEY (id),
-
-    FOREIGN KEY (team_a_id) REFERENCES teams(id),
-    FOREIGN KEY (team_b_id) REFERENCES teams(id),
-    FOREIGN KEY (toss_winner_team_id) REFERENCES teams(id),
-    FOREIGN KEY (hosted_by_user_id) REFERENCES users(id)
+    started_by_user_id VARCHAR(64),
+    ended_by_user_id VARCHAR(64)
 );

@@ -1,58 +1,50 @@
 package com.gmh.cricket_app.models;
 
-import java.util.Date;
-import java.util.UUID;
-
 import com.gmh.cricket_app.enums.MatchStatus;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.PrePersist;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
+import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
-@AllArgsConstructor
-@NoArgsConstructor
-@Setter
+@Table(name = "matches")
 @Getter
-@ToString
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Match {
 
     @Id
     private String id;
 
-    @ManyToOne
-    private Team teamA;
+    @Column(name = "team_a_id", nullable = false)
+    private String teamAId;
 
-    @ManyToOne
-    private Team teamB;
+    @Column(name = "team_b_id", nullable = false)
+    private String teamBId;
 
+    @Column(nullable = false)
+    private String format; // T20, ODI, TEST
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private MatchStatus status;
 
-    @OneToOne
-    private Innings firstInnings;
+    @Column(name = "planned_start_time", nullable = false)
+    private long plannedStartTime;
 
-    @OneToOne
-    private Innings secondInnings;
+    @Column(name = "actual_start_time")
+    private Long actualStartTime;
 
-    private Date startTime;
-    private Date endTime;
+    @Column(name = "actual_end_time")
+    private Long actualEndTime;
 
-    @PrePersist
-    public void generateId() {
-        if (this.id == null) {
-            this.id = UUID.randomUUID()
-                          .toString()
-                          .replace("-", "")
-                          .substring(0, 16)
-                          .toUpperCase();
-        }
-    }
+    @Column(name = "hosted_by_user_id", nullable = false)
+    private String hostedByUserId;
+
+    @Column(name = "started_by_user_id")
+    private String startedByUserId;
+
+    @Column(name = "ended_by_user_id")
+    private String endedByUserId;
 }
 

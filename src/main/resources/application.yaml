@@ -19,3 +19,7 @@ spring:
 session:
   duration:
     ms: 86400000   # 24 hours
+
+cricket:
+  match:
+    id-length: 12
