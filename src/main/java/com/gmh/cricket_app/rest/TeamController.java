@@ -9,6 +9,7 @@ import com.gmh.cricket_app.dto.team.AddPlayerToTeamRequest;
 import com.gmh.cricket_app.dto.team.CreateTeamRequest;
 import com.gmh.cricket_app.dto.team.DeleteTeamRequest;
 import com.gmh.cricket_app.dto.team.ModifyTeamRequest;
+import com.gmh.cricket_app.dto.team.RemovePlayerFromTeamRequest;
 import com.gmh.cricket_app.models.team.Team;
 import com.gmh.cricket_app.service.TeamService;
 
@@ -39,6 +40,11 @@ public class TeamController {
     @PostMapping("/add-player")
     public void addPlayer(@RequestBody AddPlayerToTeamRequest req) {
         teamService.addPlayerToTeam(req);
+    }
+
+    @PostMapping("/remove-player")
+    public void removePlayer(@RequestBody RemovePlayerFromTeamRequest req) {
+        teamService.removePlayerFromTeam(req.getSessionToken(), req.getTeamId(), req.getPlayerId());
     }
 }
 

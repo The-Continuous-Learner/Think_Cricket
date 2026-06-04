@@ -102,4 +102,16 @@ public class TeamService {
 
         mapperRepo.save(new TeamPlayerMapper(req.getTeamId(), req.getPlayerId()));
     }
+
+    @Transactional
+    public void removePlayerFromTeam(String sessionToken, String teamId, String playerId) {
+
+        sessionService.validateSession(sessionToken);
+
+        if (!mapperRepo.existsByTeamIdAndPlayerId(teamId, playerId)) {
+            throw new BadRequestException("Player not in team");
+        }
+
+        mapperRepo.deleteByTeamIdAndPlayerId(teamId, playerId);
+    }
 }

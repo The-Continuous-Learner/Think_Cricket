@@ -14,5 +14,7 @@ public interface TeamPlayerMapperRepository extends JpaRepository<TeamPlayerMapp
     List<TeamPlayerMapper> findByTeamId(String teamId);
 
     void deleteByTeamId(String teamId);
+
+    void deleteByTeamIdAndPlayerId(String teamId, String playerId);
 }
 
