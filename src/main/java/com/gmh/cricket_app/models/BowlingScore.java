@@ -1,7 +1,9 @@
 package com.gmh.cricket_app.models;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,23 +16,33 @@ import lombok.ToString;
 @Getter
 @ToString
 @Entity
+@Table(name = "bowling_score")
 public class BowlingScore {
 
     @Id
-    private String id; // matchId-INN-<inningsNumber>-BOWL-<bowlerId>
+    private String id;
 
+    @Column(name = "match_id")
     private String matchId;
+
+    @Column(name = "innings_id")
     private String inningsId;
+
+    @Column(name = "innings_number")
     private int inningsNumber;
 
+    @Column(name = "player_id")
     private String bowlerId;
 
-    private int ballsBowled;      // count legal deliveries
-    private int overs;            // derived from ballsBowled
+    @Column(name = "balls_bowled")
+    private int ballsBowled;
+
+    private int overs;
     private int maidens;
 
+    @Column(name = "runs")
     private int runsConceded;
-    private int wickets;
 
+    private int wickets;
     private double economy;
 }
