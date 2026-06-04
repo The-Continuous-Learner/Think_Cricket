@@ -15,10 +15,11 @@ import com.gmh.cricket_app.util.CommonUtil;
 import com.gmh.cricket_app.exceptions.BadRequestException;
 import com.gmh.cricket_app.repositories.PlayerRepository;
 
-
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class TeamService {
@@ -36,16 +37,18 @@ public class TeamService {
         sessionService.validateSession(req.getSessionToken());
 
         if (teamRepo.existsByName(req.getName())) {
+            log.warn("Create team failed - name already exists: {}", req.getName());
             throw new BadRequestException("Team name already exists");
         }
 
         Team team = new Team();
-        team.setId(CommonUtil.generateId(teamIdLength)); // configurable UUID length
+        team.setId(CommonUtil.generateId(teamIdLength));
         team.setName(req.getName());
         team.setDescription(req.getDescription());
 
         teamRepo.save(team);
 
+        log.info("Team created: teamId={}, name={}", team.getId(), team.getName());
         return team;
     }
 
@@ -58,6 +61,7 @@ public class TeamService {
 
         if (req.getName() != null && !req.getName().equals(team.getName())) {
             if (teamRepo.existsByName(req.getName())) {
+                log.warn("Modify team failed - name already exists: {}", req.getName());
                 throw new BadRequestException("Team name already exists");
             }
             team.setName(req.getName());
@@ -68,6 +72,8 @@ public class TeamService {
         }
 
         teamRepo.save(team);
+
+        log.info("Team modified: teamId={}", team.getId());
     }
 
     @Transactional
@@ -80,8 +86,9 @@ public class TeamService {
         }
 
         mapperRepo.deleteByTeamId(req.getTeamId());
-
         teamRepo.deleteById(req.getTeamId());
+
+        log.info("Team deleted: teamId={}", req.getTeamId());
     }
 
     public void addPlayerToTeam(AddPlayerToTeamRequest req) {
@@ -91,16 +98,17 @@ public class TeamService {
         if (!teamRepo.existsById(req.getTeamId())) {
             throw new BadRequestException("Team not found");
         }
-
         if (!playerRepo.existsById(req.getPlayerId())) {
             throw new BadRequestException("Player not found");
         }
-
         if (mapperRepo.existsByTeamIdAndPlayerId(req.getTeamId(), req.getPlayerId())) {
+            log.warn("Add player failed - already in team: teamId={}, playerId={}", req.getTeamId(), req.getPlayerId());
             throw new BadRequestException("Player already in team");
         }
 
         mapperRepo.save(new TeamPlayerMapper(req.getTeamId(), req.getPlayerId()));
+
+        log.info("Player added to team: teamId={}, playerId={}", req.getTeamId(), req.getPlayerId());
     }
 
     @Transactional
@@ -109,9 +117,12 @@ public class TeamService {
         sessionService.validateSession(sessionToken);
 
         if (!mapperRepo.existsByTeamIdAndPlayerId(teamId, playerId)) {
+            log.warn("Remove player failed - not in team: teamId={}, playerId={}", teamId, playerId);
             throw new BadRequestException("Player not in team");
         }
 
         mapperRepo.deleteByTeamIdAndPlayerId(teamId, playerId);
+
+        log.info("Player removed from team: teamId={}, playerId={}", teamId, playerId);
     }
 }

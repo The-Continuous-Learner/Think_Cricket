@@ -10,7 +10,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
-    show-sql: true
     properties:
       hibernate:
         globally_quoted_identifiers: true
@@ -24,8 +23,12 @@ spring:
 
 logging:
   level:
-    org.flywaydb: DEBUG
+    root: WARN
+    com.gmh.cricket_app: INFO
+    org.flywaydb: INFO
     org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
 
 session:
   duration:

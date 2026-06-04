@@ -16,7 +16,9 @@ import com.gmh.cricket_app.repositories.UserRepository;
 import com.gmh.cricket_app.util.PasswordUtil;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -26,45 +28,49 @@ public class UserService {
 
     public RegistrationResponse register(RegistrationRequest req) {
 
-        // 1. Check if email/username already exists
         List<User> existing = userRepo.findByEmailOrUsername(req.getEmail(), req.getUsername());
 
         boolean emailExists = existing.stream().anyMatch(u -> u.getEmail().equals(req.getEmail()));
         boolean usernameExists = existing.stream().anyMatch(u -> u.getUsername().equals(req.getUsername()));
 
-        if (emailExists) throw new BadRequestException("Email already registered");
-        if (usernameExists) throw new BadRequestException("Username already taken");
+        if (emailExists) {
+            log.warn("Registration failed - email already registered: {}", req.getEmail());
+            throw new BadRequestException("Email already registered");
+        }
+        if (usernameExists) {
+            log.warn("Registration failed - username already taken: {}", req.getUsername());
+            throw new BadRequestException("Username already taken");
+        }
 
-
-        // 2. Create user
         User user = new User();
         user.setId(UUID.randomUUID().toString());
         user.setUsername(req.getUsername());
         user.setEmail(req.getEmail());
         user.setPasswordHash(PasswordUtil.hashPassword(req.getPassword()));
-        user.setVerified(true); // for now, auto-verify
+        user.setVerified(true);
 
         userRepo.save(user);
 
+        log.info("User registered: id={}, username={}", user.getId(), user.getUsername());
         return new RegistrationResponse(user.getId(), user.getUsername(), user.getEmail());
     }
 
     public LoginResponse login(LoginRequest req) {
+
         User user = userRepo.findByEmail(req.getEmail())
-                .orElseThrow(() -> new BadRequestException("Invalid email or password"));
+                .orElseThrow(() -> {
+                    log.warn("Login failed - no account for email: {}", req.getEmail());
+                    return new BadRequestException("Invalid email or password");
+                });
 
         if (!PasswordUtil.verify(req.getPassword(), user.getPasswordHash())) {
-            throw new RuntimeException("Invalid email or password");
+            log.warn("Login failed - wrong password for userId={}", user.getId());
+            throw new BadRequestException("Invalid email or password");
         }
 
         Session session = sessionService.createSession(user.getId());
 
-        return new LoginResponse(
-                session.getToken(),
-                user.getId(),
-                user.getUsername()
-        );
+        log.info("User logged in: userId={}, username={}", user.getId(), user.getUsername());
+        return new LoginResponse(session.getToken(), user.getId(), user.getUsername());
     }
-
 }
-

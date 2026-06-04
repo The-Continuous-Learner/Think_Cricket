@@ -8,17 +8,20 @@ import org.springframework.stereotype.Service;
 import com.gmh.cricket_app.models.Player;
 import com.gmh.cricket_app.repositories.PlayerRepository;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class PlayerService {
 
     private final PlayerRepository playerRepository;
 
-    public PlayerService(PlayerRepository playerRepository) {
-        this.playerRepository = playerRepository;
-    }
-
     public Player savePlayer(Player player) {
-        return playerRepository.save(player);
+        Player saved = playerRepository.save(player);
+        log.info("Player saved: playerId={}, name={}", saved.getId(), saved.getName());
+        return saved;
     }
 
     public Optional<Player> getPlayerById(String id) {
@@ -32,6 +35,4 @@ public class PlayerService {
     public List<Player> getPlayersByName(String name) {
         return playerRepository.findByName(name);
     }
-
 }
-

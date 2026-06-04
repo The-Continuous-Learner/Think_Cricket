@@ -15,7 +15,9 @@ import com.gmh.cricket_app.repositories.MatchRepository;
 import com.gmh.cricket_app.repositories.TossRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TossService {
@@ -32,15 +34,18 @@ public class TossService {
                 .orElseThrow(() -> new BadRequestException("Match not found"));
 
         if (match.getStatus() != MatchStatus.IN_PROGRESS) {
+            log.warn("Toss failed - match not IN_PROGRESS: matchId={}, status={}", match.getId(), match.getStatus());
             throw new BadRequestException("Toss can only be conducted for an IN_PROGRESS match");
         }
 
         if (tossRepo.existsByMatchId(req.getMatchId())) {
+            log.warn("Toss failed - already conducted: matchId={}", req.getMatchId());
             throw new BadRequestException("Toss already conducted for this match");
         }
 
         String winnerTeamId = req.getWinnerTeamId();
         if (!winnerTeamId.equals(match.getTeamAId()) && !winnerTeamId.equals(match.getTeamBId())) {
+            log.warn("Toss failed - winner team not in match: matchId={}, winnerTeamId={}", match.getId(), winnerTeamId);
             throw new BadRequestException("Winner team does not belong to this match");
         }
 
@@ -55,6 +60,9 @@ public class TossService {
         );
 
         tossRepo.save(toss);
+
+        log.info("Toss conducted: matchId={}, result={}, winner={}, decision={}",
+                toss.getMatchId(), toss.getTossResult(), toss.getWinnerTeamId(), toss.getDecision());
 
         return new ConductTossResponse(
                 toss.getId(),

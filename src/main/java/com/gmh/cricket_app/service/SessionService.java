@@ -13,7 +13,9 @@ import com.gmh.cricket_app.repositories.SessionRepository;
 import com.gmh.cricket_app.repositories.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SessionService {
@@ -35,14 +37,21 @@ public class SessionService {
         session.setExpiresAt(now + sessionDurationMs);
 
         sessionRepo.save(session);
+
+        log.info("Session created: userId={}", userId);
         return session;
     }
 
     public User validateSession(String token) {
+
         Session session = sessionRepo.findById(token)
-                .orElseThrow(() -> new BadRequestException("Invalid session token"));
+                .orElseThrow(() -> {
+                    log.warn("Session validation failed - token not found");
+                    return new BadRequestException("Invalid session token");
+                });
 
         if (session.getExpiresAt() < System.currentTimeMillis()) {
+            log.warn("Session expired: userId={}", session.getUserId());
             sessionRepo.delete(session);
             throw new SessionExpiredException("Session expired");
         }
@@ -54,7 +63,7 @@ public class SessionService {
     public void deleteSession(String token) {
         if (sessionRepo.existsById(token)) {
             sessionRepo.deleteById(token);
+            log.info("Session deleted");
         }
     }
-
 }

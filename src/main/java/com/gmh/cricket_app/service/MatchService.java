@@ -16,9 +16,12 @@ import com.gmh.cricket_app.repositories.TeamRepository;
 import com.gmh.cricket_app.util.CommonUtil;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MatchService {
@@ -34,22 +37,16 @@ public class MatchService {
 
         User user = sessionService.validateSession(req.getSessionToken());
 
-        // Validate team A
         if (!teamRepo.existsById(req.getTeamAId())) {
             throw new BadRequestException("Team A does not exist: " + req.getTeamAId());
         }
-
-        // Validate team B
         if (!teamRepo.existsById(req.getTeamBId())) {
             throw new BadRequestException("Team B does not exist: " + req.getTeamBId());
         }
-
-        // Prevent same team on both sides
         if (req.getTeamAId().equals(req.getTeamBId())) {
             throw new BadRequestException("Team A and Team B cannot be the same");
         }
 
-        // Create match
         Match match = new Match();
         match.setId(CommonUtil.generateId(matchIdLength));
         match.setTeamAId(req.getTeamAId());
@@ -61,31 +58,32 @@ public class MatchService {
 
         matchRepo.save(match);
 
+        log.info("Match hosted: matchId={}, format={}, teamA={}, teamB={}, hostedBy={}",
+                match.getId(), match.getFormat(), match.getTeamAId(), match.getTeamBId(), user.getId());
+
         return new HostMatchResponse(match.getId(), match.getStatus());
     }
 
-
     public StartMatchResponse startMatch(StartMatchRequest req) {
 
-        // Validate session
         User user = sessionService.validateSession(req.getSessionToken());
 
-        // Fetch match
         Match match = matchRepo.findById(req.getMatchId())
                 .orElseThrow(() -> new BadRequestException("Match not found"));
 
-        // Validate state
         if (match.getStatus() != MatchStatus.NOT_STARTED) {
+            log.warn("Start match failed - invalid state: matchId={}, status={}", match.getId(), match.getStatus());
             throw new BadRequestException("Match cannot be started in current state: " + match.getStatus());
         }
 
-        // Set start details
         long now = System.currentTimeMillis();
         match.setActualStartTime(now);
         match.setStatus(MatchStatus.IN_PROGRESS);
         match.setStartedByUserId(user.getId());
 
         matchRepo.save(match);
+
+        log.info("Match started: matchId={}, startedBy={}", match.getId(), user.getId());
 
         return new StartMatchResponse(
                 match.getId(),
@@ -97,34 +95,34 @@ public class MatchService {
 
     public EndMatchResponse endMatch(EndMatchRequest req) {
 
-        // Validate session
         User user = sessionService.validateSession(req.getSessionToken());
 
-        // Fetch match
         Match match = matchRepo.findById(req.getMatchId())
                 .orElseThrow(() -> new BadRequestException("Match not found"));
 
         MatchStatus finalStatus = req.getFinalStatus();
 
-        // Validate transitions
         if (finalStatus == MatchStatus.COMPLETED || finalStatus == MatchStatus.ABANDONED) {
             if (match.getStatus() != MatchStatus.IN_PROGRESS) {
+                log.warn("End match failed - match not IN_PROGRESS: matchId={}, status={}", match.getId(), match.getStatus());
                 throw new BadRequestException("Match must be IN_PROGRESS to end as " + finalStatus);
             }
         }
         if (finalStatus == MatchStatus.CANCELLED) {
             if (match.getStatus() != MatchStatus.NOT_STARTED) {
+                log.warn("Cancel match failed - match already started: matchId={}, status={}", match.getId(), match.getStatus());
                 throw new BadRequestException("Only NOT_STARTED matches can be cancelled");
             }
         }
 
-        // Set end details
         long now = System.currentTimeMillis();
         match.setActualEndTime(now);
         match.setStatus(finalStatus);
         match.setEndedByUserId(user.getId());
 
         matchRepo.save(match);
+
+        log.info("Match ended: matchId={}, finalStatus={}, endedBy={}", match.getId(), finalStatus, user.getId());
 
         return new EndMatchResponse(
                 match.getId(),
@@ -136,14 +134,11 @@ public class MatchService {
 
     public MatchDetailsResponse getMatchDetails(String sessionToken, String matchId) {
 
-        // Validate session
         sessionService.validateSession(sessionToken);
 
-        // Fetch match
         Match match = matchRepo.findById(matchId)
                 .orElseThrow(() -> new BadRequestException("Match not found"));
 
-        // Build response DTO
         return new MatchDetailsResponse(
                 match.getId(),
                 match.getTeamAId(),
@@ -158,5 +153,4 @@ public class MatchService {
                 match.getEndedByUserId()
         );
     }
-
 }
