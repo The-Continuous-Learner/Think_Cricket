@@ -1,5 +1,7 @@
 package com.gmh.cricket_app.service;
 
+import java.util.List;
+
 import com.gmh.cricket_app.dto.match.EndMatchRequest;
 import com.gmh.cricket_app.dto.match.EndMatchResponse;
 import com.gmh.cricket_app.dto.match.HostMatchRequest;
@@ -74,6 +76,12 @@ public class MatchService {
         if (match.getStatus() != MatchStatus.NOT_STARTED) {
             log.warn("Start match failed - invalid state: matchId={}, status={}", match.getId(), match.getStatus());
             throw new BadRequestException("Match cannot be started in current state: " + match.getStatus());
+        }
+
+        if (matchRepo.existsInProgressMatchInvolvingAnyOf(List.of(match.getTeamAId(), match.getTeamBId()))) {
+            log.warn("Start match failed - team already in active match: matchId={}, teamA={}, teamB={}",
+                    match.getId(), match.getTeamAId(), match.getTeamBId());
+            throw new BadRequestException("One or both teams already have an in-progress match");
         }
 
         long now = System.currentTimeMillis();
