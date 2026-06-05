@@ -39,6 +39,10 @@ public class MatchService {
 
         User user = sessionService.validateSession(req.getSessionToken());
 
+        if (req.getTotalOvers() == null) {
+            throw new BadRequestException("totalOvers is required (use 0 for unlimited/Test matches)");
+        }
+
         if (!teamRepo.existsById(req.getTeamAId())) {
             throw new BadRequestException("Team A does not exist: " + req.getTeamAId());
         }
@@ -49,19 +53,25 @@ public class MatchService {
             throw new BadRequestException("Team A and Team B cannot be the same");
         }
 
+        if (req.getParentMatchId() != null && !matchRepo.existsById(req.getParentMatchId())) {
+            throw new BadRequestException("Parent match not found: " + req.getParentMatchId());
+        }
+
         Match match = new Match();
         match.setId(CommonUtil.generateId(matchIdLength));
         match.setTeamAId(req.getTeamAId());
         match.setTeamBId(req.getTeamBId());
         match.setFormat(req.getFormat());
+        match.setTotalOvers(req.getTotalOvers());
         match.setStatus(MatchStatus.NOT_STARTED);
         match.setPlannedStartTime(req.getPlannedStartTime());
         match.setHostedByUserId(user.getId());
+        match.setParentMatchId(req.getParentMatchId());
 
         matchRepo.save(match);
 
-        log.info("Match hosted: matchId={}, format={}, teamA={}, teamB={}, hostedBy={}",
-                match.getId(), match.getFormat(), match.getTeamAId(), match.getTeamBId(), user.getId());
+        log.info("Match hosted: matchId={}, format={}, teamA={}, teamB={}, hostedBy={}, totalOvers={}",
+                match.getId(), match.getFormat(), match.getTeamAId(), match.getTeamBId(), user.getId(), match.getTotalOvers());
 
         return new HostMatchResponse(match.getId(), match.getStatus());
     }
@@ -78,7 +88,7 @@ public class MatchService {
             throw new BadRequestException("Match cannot be started in current state: " + match.getStatus());
         }
 
-        if (matchRepo.existsInProgressMatchInvolvingAnyOf(List.of(match.getTeamAId(), match.getTeamBId()))) {
+        if (matchRepo.existsInProgressMatchInvolvingAnyOf(List.of(match.getTeamAId(), match.getTeamBId())) > 0) {
             log.warn("Start match failed - team already in active match: matchId={}, teamA={}, teamB={}",
                     match.getId(), match.getTeamAId(), match.getTeamBId());
             throw new BadRequestException("One or both teams already have an in-progress match");
@@ -152,6 +162,7 @@ public class MatchService {
                 match.getTeamAId(),
                 match.getTeamBId(),
                 match.getFormat(),
+                match.getTotalOvers(),
                 match.getStatus(),
                 match.getPlannedStartTime(),
                 match.getActualStartTime(),

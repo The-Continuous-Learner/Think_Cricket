@@ -12,7 +12,11 @@ public class HostMatchRequest {
     private String teamAId;
     private String teamBId;
 
-    private String format; // T20, ODI, TEST
+    private String format;
+
+    private Integer totalOvers; // 0 = unlimited (Test), null = not provided
 
     private long plannedStartTime; // epoch millis
+
+    private String parentMatchId; // set only for super over matches
 }

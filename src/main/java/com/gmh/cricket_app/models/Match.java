@@ -46,5 +46,11 @@ public class Match {
 
     @Column(name = "ended_by_user_id")
     private String endedByUserId;
+
+    @Column(name = "total_overs", nullable = false)
+    private int totalOvers; // 0 = unlimited (Test)
+
+    @Column(name = "parent_match_id")
+    private String parentMatchId; // set for super over matches
 }
 

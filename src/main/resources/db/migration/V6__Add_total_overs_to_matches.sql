@@ -1,0 +1,2 @@
+ALTER TABLE `matches`
+  ADD COLUMN `total_overs` INT NOT NULL DEFAULT 0;

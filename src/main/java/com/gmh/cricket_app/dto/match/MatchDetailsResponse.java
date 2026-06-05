@@ -17,6 +17,7 @@ public class MatchDetailsResponse {
     private String teamBId;
 
     private String format;
+    private int totalOvers;
     private MatchStatus status;
 
     private long plannedStartTime;

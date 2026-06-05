@@ -3,14 +3,15 @@ package com.gmh.cricket_app.models;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.gmh.cricket_app.models.team.Team;
+import com.gmh.cricket_app.enums.InningsStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -37,13 +38,11 @@ public class Innings {
     @Column(name = "innings_number")
     private int inningsNumber;
 
-    @ManyToOne
-    @JoinColumn(name = "batting_team_id")
-    private Team battingTeam;
+    @Column(name = "batting_team_id")
+    private String battingTeamId;
 
-    @ManyToOne
-    @JoinColumn(name = "bowling_team_id")
-    private Team bowlingTeam;
+    @Column(name = "bowling_team_id")
+    private String bowlingTeamId;
 
     @OneToMany
     @JoinTable(
@@ -53,10 +52,16 @@ public class Innings {
     )
     private List<Over> overs = new ArrayList<>();
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private InningsStatus status;
+
+    @Column(name = "overs_completed")
+    private int oversCompleted;
+
     @Column(name = "total_runs")
     private int totalRuns;
 
     private int wickets;
     private int extras;
-    private Integer target;
 }
