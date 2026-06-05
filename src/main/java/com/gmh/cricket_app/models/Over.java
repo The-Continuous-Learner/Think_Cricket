@@ -3,8 +3,12 @@ package com.gmh.cricket_app.models;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.gmh.cricket_app.enums.OverStatus;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
@@ -26,7 +30,7 @@ import lombok.ToString;
 public class Over {
 
     @Id
-    private String id;
+    private String id; // matchId-INN-inningsNumber-OVR-overNumber
 
     @Column(name = "match_id")
     private String matchId;
@@ -39,6 +43,18 @@ public class Over {
 
     @Column(name = "over_number")
     private int overNumber;
+
+    @Column(name = "bowler_id")
+    private String bowlerId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private OverStatus status;
+
+    @Column(name = "total_runs")
+    private int totalRuns;
+
+    private int wickets;
 
     @OneToMany
     @JoinTable(
