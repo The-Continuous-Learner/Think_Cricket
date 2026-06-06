@@ -56,6 +56,9 @@ public class Over {
 
     private int wickets;
 
+    @Column(name = "legal_ball_count")
+    private int legalBallCount;
+
     @OneToMany
     @JoinTable(
         name = "over_balls",

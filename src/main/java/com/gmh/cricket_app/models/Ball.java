@@ -1,5 +1,6 @@
 package com.gmh.cricket_app.models;
 
+import com.gmh.cricket_app.enums.BoundaryType;
 import com.gmh.cricket_app.enums.ExtraType;
 
 import jakarta.persistence.Column;
@@ -7,9 +8,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -27,7 +25,7 @@ import lombok.ToString;
 public class Ball {
 
     @Id
-    private String id;
+    private String id; // overId-ballNumber e.g. matchId-INN-1-OVR-3-2
 
     @Column(name = "match_id")
     private String matchId;
@@ -35,7 +33,7 @@ public class Ball {
     @Column(name = "innings_id")
     private String inningsId;
 
-    @Column(name = "over_id", insertable = false, updatable = false)
+    @Column(name = "over_id")
     private String overId;
 
     @Column(name = "innings_number")
@@ -50,11 +48,21 @@ public class Ball {
     @Column(name = "legal_delivery")
     private boolean legalDelivery;
 
-    private int runs;
+    private int runs;       // off the bat only
+
+    @Column(name = "extra_runs")
+    private int extraRuns;  // wide/no-ball penalty + bye/leg-bye runs
 
     @Enumerated(EnumType.STRING)
     @Column(name = "extra_type")
     private ExtraType extraType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "boundary_type")
+    private BoundaryType boundaryType; // FOUR/SIX if boundary, null otherwise
+
+    @Column(name = "bowler_id")
+    private String bowlerId; // defaults to over bowler, overrideable for mid-over injury
 
     @Column(name = "batsman_id")
     private String batsmanId;
@@ -63,12 +71,4 @@ public class Ball {
     private String nonStrikerId;
 
     private boolean wicket;
-
-    @OneToOne
-    @JoinColumn(name = "wicket_id")
-    private Wicket wicketInfo;
-
-    @ManyToOne
-    @JoinColumn(name = "over_id")
-    private Over over;
 }

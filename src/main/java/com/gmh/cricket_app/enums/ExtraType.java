@@ -1,9 +1,8 @@
 package com.gmh.cricket_app.enums;
 
 public enum ExtraType {
-    Wide,
-    NoBall,
-    Bye,
-    legBye,
-    None
+    WIDE,
+    NO_BALL,
+    BYE,
+    LEG_BYE
 }
