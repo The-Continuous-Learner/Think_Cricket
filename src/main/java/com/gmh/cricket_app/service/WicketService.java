@@ -17,6 +17,7 @@ import com.gmh.cricket_app.repositories.BattingScoreRepository;
 import com.gmh.cricket_app.repositories.BowlingScoreRepository;
 import com.gmh.cricket_app.repositories.FallOfWicketRepository;
 import com.gmh.cricket_app.repositories.InningsRepository;
+import com.gmh.cricket_app.repositories.TeamPlayerMapperRepository;
 import com.gmh.cricket_app.repositories.WicketRepository;
 
 import jakarta.transaction.Transactional;
@@ -38,6 +39,7 @@ public class WicketService {
     private final InningsRepository inningsRepo;
     private final BattingScoreRepository battingScoreRepo;
     private final BowlingScoreRepository bowlingScoreRepo;
+    private final TeamPlayerMapperRepository teamPlayerMapperRepo;
     private final SessionService sessionService;
 
     @Transactional
@@ -58,6 +60,8 @@ public class WicketService {
 
         Innings innings = inningsRepo.findById(ball.getInningsId())
                 .orElseThrow(() -> new BadRequestException("Innings not found"));
+
+        validatePlayerTeamMembership(innings, req);
 
         int wicketNumber = (int) fallOfWicketRepo.countByInningsId(innings.getId()) + 1;
         int teamScoreAtFall = innings.getTotalRuns();
@@ -122,5 +126,19 @@ public class WicketService {
                 wicketNumber,
                 teamScoreAtFall
         );
+    }
+
+    private void validatePlayerTeamMembership(Innings innings, RecordWicketRequest req) {
+        String bat = innings.getBattingTeamId();
+        String bowl = innings.getBowlingTeamId();
+
+        if (!teamPlayerMapperRepo.existsByTeamIdAndPlayerId(bat, req.getPlayerOutId()))
+            throw new BadRequestException("Player out not found in batting team");
+        if (req.getBowlerId() != null
+                && !teamPlayerMapperRepo.existsByTeamIdAndPlayerId(bowl, req.getBowlerId()))
+            throw new BadRequestException("Bowler not found in bowling team");
+        if (req.getFielderId() != null
+                && !teamPlayerMapperRepo.existsByTeamIdAndPlayerId(bowl, req.getFielderId()))
+            throw new BadRequestException("Fielder not found in bowling team");
     }
 }

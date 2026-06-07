@@ -1,6 +1,7 @@
 package com.gmh.cricket_app.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
@@ -24,6 +25,7 @@ import com.gmh.cricket_app.repositories.BowlingScoreRepository;
 import com.gmh.cricket_app.repositories.InningsRepository;
 import com.gmh.cricket_app.repositories.MatchRepository;
 import com.gmh.cricket_app.repositories.OverRepository;
+import com.gmh.cricket_app.repositories.TeamPlayerMapperRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -40,12 +42,15 @@ public class BallService {
     private final MatchRepository matchRepo;
     private final BattingScoreRepository battingScoreRepo;
     private final BowlingScoreRepository bowlingScoreRepo;
+    private final TeamPlayerMapperRepository teamPlayerMapperRepo;
     private final SessionService sessionService;
 
     @Transactional
     public RecordBallResponse recordBall(RecordBallRequest req) {
 
         sessionService.validateSession(req.getSessionToken());
+
+        validateCrossFieldRules(req);
 
         Over over = overRepo.findById(req.getOverId())
                 .orElseThrow(() -> new BadRequestException("Over not found"));
@@ -61,6 +66,8 @@ public class BallService {
             throw new BadRequestException("Innings is not active");
         }
 
+        validatePlayerTeamMembership(innings, req);
+
         Match match = matchRepo.findById(innings.getMatchId())
                 .orElseThrow(() -> new BadRequestException("Match not found"));
 
@@ -68,8 +75,8 @@ public class BallService {
             throw new BadRequestException("Match is not in progress");
         }
 
-        String effectiveBowlerId = req.getBowlerOverride() != null
-                ? req.getBowlerOverride()
+        String effectiveBowlerId = req.getBowlerId() != null
+                ? req.getBowlerId()
                 : over.getBowlerId();
 
         int ballNumber = (int) ballRepo.countByOverId(req.getOverId()) + 1;
@@ -127,40 +134,39 @@ public class BallService {
         // --- Auto-complete over on 6th legal ball ---
         boolean overCompleted = false;
         if (over.getLegalBallCount() >= 6) {
-            over.setStatus(OverStatus.COMPLETED);
-            overRepo.save(over);
+            completeOver(innings, over, effectiveBowlerId);
             overCompleted = true;
-
-            innings.setOversCompleted(innings.getOversCompleted() + 1);
-
-            // Maiden check
-            List<Ball> overBalls = ballRepo.findByOverIdOrderByBallNumberAsc(over.getId());
-            boolean isMaiden = overBalls.stream()
-                    .mapToInt(this::getBowlerRunsFromBall)
-                    .sum() == 0;
-            if (isMaiden) {
-                bowlingScoreRepo.findByInningsIdAndBowlerId(innings.getId(), effectiveBowlerId)
-                        .ifPresent(bs -> {
-                            bs.setMaidens(bs.getMaidens() + 1);
-                            bowlingScoreRepo.save(bs);
-                        });
-            }
-
-            inningsRepo.save(innings);
         }
 
         // --- Auto-end innings ---
         boolean inningsCompleted = false;
+        boolean shouldEndInnings = false;
+        String inningsEndReason = null;
+
         if (innings.getWickets() >= 10) {
-            innings.setStatus(InningsStatus.COMPLETED);
-            inningsRepo.save(innings);
-            inningsCompleted = true;
-            log.info("Innings auto-ended (10 wickets): inningsId={}", innings.getId());
+            shouldEndInnings = true;
+            inningsEndReason = "10 wickets";
         } else if (match.getTotalOvers() > 0 && innings.getOversCompleted() >= match.getTotalOvers()) {
+            shouldEndInnings = true;
+            inningsEndReason = "over limit";
+        } else if (match.getTotalOvers() > 0 && innings.getInningsNumber() == 2) {
+            Optional<Innings> firstInningsOpt =
+                    inningsRepo.findByMatchIdAndInningsNumber(innings.getMatchId(), 1);
+            if (firstInningsOpt.isPresent() && innings.getTotalRuns() > firstInningsOpt.get().getTotalRuns()) {
+                shouldEndInnings = true;
+                inningsEndReason = "target achieved";
+            }
+        }
+
+        if (shouldEndInnings) {
+            if (!overCompleted) {
+                completeOver(innings, over, effectiveBowlerId);
+                overCompleted = true;
+            }
             innings.setStatus(InningsStatus.COMPLETED);
             inningsRepo.save(innings);
             inningsCompleted = true;
-            log.info("Innings auto-ended (over limit): inningsId={}", innings.getId());
+            log.info("Innings auto-ended ({}): inningsId={}", inningsEndReason, innings.getId());
         }
 
         log.info("Ball recorded: ballId={}, runs={}, extras={}, extraType={}, wicket={}, legal={}",
@@ -181,6 +187,25 @@ public class BallService {
                 overCompleted,
                 inningsCompleted
         );
+    }
+
+    private void completeOver(Innings innings, Over over, String bowlerId) {
+        over.setStatus(OverStatus.COMPLETED);
+        overRepo.save(over);
+
+        innings.setOversCompleted(innings.getOversCompleted() + 1);
+
+        List<Ball> overBalls = ballRepo.findByOverIdOrderByBallNumberAsc(over.getId());
+        boolean isMaiden = overBalls.stream().mapToInt(this::getBowlerRunsFromBall).sum() == 0;
+        if (isMaiden) {
+            bowlingScoreRepo.findByInningsIdAndBowlerId(innings.getId(), bowlerId)
+                    .ifPresent(bs -> {
+                        bs.setMaidens(bs.getMaidens() + 1);
+                        bowlingScoreRepo.save(bs);
+                    });
+        }
+
+        inningsRepo.save(innings);
     }
 
     private void upsertBattingScore(Innings innings, RecordBallRequest req, int ballsFaced) {
@@ -250,6 +275,44 @@ public class BallService {
             case NO_BALL -> req.getRuns() + 1;
             case BYE, LEG_BYE -> 0;
         };
+    }
+
+    private void validatePlayerTeamMembership(Innings innings, RecordBallRequest req) {
+        String bat = innings.getBattingTeamId();
+        String bowl = innings.getBowlingTeamId();
+
+        if (!teamPlayerMapperRepo.existsByTeamIdAndPlayerId(bat, req.getBatsmanId()))
+            throw new BadRequestException("Batsman not found in batting team");
+        if (!teamPlayerMapperRepo.existsByTeamIdAndPlayerId(bat, req.getNonStrikerId()))
+            throw new BadRequestException("Non-striker not found in batting team");
+        if (req.getBowlerId() != null
+                && !teamPlayerMapperRepo.existsByTeamIdAndPlayerId(bowl, req.getBowlerId()))
+            throw new BadRequestException("Bowler not found in bowling team");
+
+        battingScoreRepo.findByInningsIdAndPlayerId(innings.getId(), req.getBatsmanId())
+                .ifPresent(bs -> {
+                    if (bs.isOut()) throw new BadRequestException("Batsman is already dismissed");
+                });
+        battingScoreRepo.findByInningsIdAndPlayerId(innings.getId(), req.getNonStrikerId())
+                .ifPresent(bs -> {
+                    if (bs.isOut()) throw new BadRequestException("Non-striker is already dismissed");
+                });
+    }
+
+    private void validateCrossFieldRules(RecordBallRequest req) {
+        if (req.getBatsmanId().equals(req.getNonStrikerId()))
+            throw new BadRequestException("Batsman and non-striker must be different players");
+
+        if (req.getExtraType() == ExtraType.WIDE) {
+            if (req.getRuns() != 0) throw new BadRequestException("Runs off bat must be 0 on a wide");
+            if (req.getExtraRuns() < 1) throw new BadRequestException("Wide must have at least 1 extra run");
+        }
+        if (req.getExtraType() == ExtraType.NO_BALL) {
+            if (req.getExtraRuns() < 1) throw new BadRequestException("No-ball must have at least 1 extra run");
+        }
+        if (req.getExtraType() == ExtraType.BYE || req.getExtraType() == ExtraType.LEG_BYE) {
+            if (req.getRuns() != 0) throw new BadRequestException("Runs off bat must be 0 on a bye/leg-bye");
+        }
     }
 
     int getBowlerRunsFromBall(Ball ball) {

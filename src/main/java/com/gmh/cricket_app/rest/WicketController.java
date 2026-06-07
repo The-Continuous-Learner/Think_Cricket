@@ -1,5 +1,6 @@
 package com.gmh.cricket_app.rest;
 
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +20,7 @@ public class WicketController {
     private final WicketService wicketService;
 
     @PostMapping("/record")
-    public RecordWicketResponse recordWicket(@RequestBody RecordWicketRequest req) {
+    public RecordWicketResponse recordWicket(@RequestBody @Validated RecordWicketRequest req) {
         return wicketService.recordWicket(req);
     }
 }

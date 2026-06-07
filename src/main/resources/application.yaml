@@ -7,6 +7,10 @@ spring:
     username: myapp_user
     password: StrongPassword123!  ## Only for development, use environment variables or secrets management in production
 
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+
   jpa:
     hibernate:
       ddl-auto: none

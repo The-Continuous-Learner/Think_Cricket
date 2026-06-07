@@ -1,5 +1,6 @@
 package com.gmh.cricket_app.rest;
 
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +20,7 @@ public class BallController {
     private final BallService ballService;
 
     @PostMapping("/record")
-    public RecordBallResponse recordBall(@RequestBody RecordBallRequest req) {
+    public RecordBallResponse recordBall(@RequestBody @Validated RecordBallRequest req) {
         return ballService.recordBall(req);
     }
 }
