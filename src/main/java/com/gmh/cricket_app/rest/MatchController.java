@@ -8,6 +8,9 @@ import com.gmh.cricket_app.dto.match.MatchDetailsRequest;
 import com.gmh.cricket_app.dto.match.MatchDetailsResponse;
 import com.gmh.cricket_app.dto.match.StartMatchRequest;
 import com.gmh.cricket_app.dto.match.StartMatchResponse;
+import com.gmh.cricket_app.dto.score.MatchScoreRequest;
+import com.gmh.cricket_app.dto.score.MatchScoreResponse;
+import com.gmh.cricket_app.service.MatchScoreService;
 import com.gmh.cricket_app.service.MatchService;
 
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class MatchController {
 
     private final MatchService matchService;
+    private final MatchScoreService matchScoreService;
 
     @PostMapping("/host")
     public HostMatchResponse hostMatch(@RequestBody HostMatchRequest request) {
@@ -38,6 +42,11 @@ public class MatchController {
     @GetMapping("/getDetails")
     public MatchDetailsResponse getMatchDetails(@RequestBody MatchDetailsRequest request) {
         return matchService.getMatchDetails(request.getSessionToken(), request.getMatchId());
+    }
+
+    @GetMapping("/score")
+    public MatchScoreResponse getScore(@RequestBody MatchScoreRequest request) {
+        return matchScoreService.getScore(request.getSessionToken(), request.getMatchId());
     }
 }
 
