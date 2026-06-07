@@ -1,5 +1,6 @@
 package com.gmh.cricket_app.rest;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -10,7 +11,10 @@ import com.gmh.cricket_app.dto.team.CreateTeamRequest;
 import com.gmh.cricket_app.dto.team.DeleteTeamRequest;
 import com.gmh.cricket_app.dto.team.ModifyTeamRequest;
 import com.gmh.cricket_app.dto.team.RemovePlayerFromTeamRequest;
+import com.gmh.cricket_app.dto.team.TeamPlayersRequest;
+import com.gmh.cricket_app.dto.team.TeamPlayersResponse;
 import com.gmh.cricket_app.models.team.Team;
+import com.gmh.cricket_app.service.TeamPlayersService;
 import com.gmh.cricket_app.service.TeamService;
 
 import lombok.RequiredArgsConstructor;
@@ -21,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 public class TeamController {
 
     private final TeamService teamService;
+    private final TeamPlayersService teamPlayersService;
 
     @PostMapping("/create")
     public Team createTeam(@RequestBody CreateTeamRequest req) {
@@ -46,5 +51,9 @@ public class TeamController {
     public void removePlayer(@RequestBody RemovePlayerFromTeamRequest req) {
         teamService.removePlayerFromTeam(req.getSessionToken(), req.getTeamId(), req.getPlayerId());
     }
-}
 
+    @GetMapping("/players")
+    public TeamPlayersResponse getTeamPlayers(@RequestBody TeamPlayersRequest req) {
+        return teamPlayersService.getTeamPlayers(req.getSessionToken(), req.getTeamId());
+    }
+}

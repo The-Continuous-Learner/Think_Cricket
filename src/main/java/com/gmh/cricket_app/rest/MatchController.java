@@ -8,10 +8,17 @@ import com.gmh.cricket_app.dto.match.MatchDetailsRequest;
 import com.gmh.cricket_app.dto.match.MatchDetailsResponse;
 import com.gmh.cricket_app.dto.match.StartMatchRequest;
 import com.gmh.cricket_app.dto.match.StartMatchResponse;
+import com.gmh.cricket_app.dto.match.LiveStateRequest;
+import com.gmh.cricket_app.dto.match.LiveStateResponse;
+import com.gmh.cricket_app.dto.match.MatchListRequest;
+import com.gmh.cricket_app.dto.match.MatchSummary;
 import com.gmh.cricket_app.dto.score.MatchScoreRequest;
 import com.gmh.cricket_app.dto.score.MatchScoreResponse;
+import com.gmh.cricket_app.service.MatchReadService;
 import com.gmh.cricket_app.service.MatchScoreService;
 import com.gmh.cricket_app.service.MatchService;
+
+import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +30,7 @@ public class MatchController {
 
     private final MatchService matchService;
     private final MatchScoreService matchScoreService;
+    private final MatchReadService matchReadService;
 
     @PostMapping("/host")
     public HostMatchResponse hostMatch(@RequestBody HostMatchRequest request) {
@@ -47,6 +55,16 @@ public class MatchController {
     @GetMapping("/score")
     public MatchScoreResponse getScore(@RequestBody MatchScoreRequest request) {
         return matchScoreService.getScore(request.getSessionToken(), request.getMatchId());
+    }
+
+    @GetMapping("/list")
+    public List<MatchSummary> getMatchList(@RequestBody MatchListRequest request) {
+        return matchReadService.getMatchList(request.getSessionToken());
+    }
+
+    @GetMapping("/live-state")
+    public LiveStateResponse getLiveState(@RequestBody LiveStateRequest request) {
+        return matchReadService.getLiveState(request.getSessionToken(), request.getMatchId());
     }
 }
 

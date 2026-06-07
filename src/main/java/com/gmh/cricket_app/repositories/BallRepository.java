@@ -1,6 +1,7 @@
 package com.gmh.cricket_app.repositories;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -13,4 +14,6 @@ public interface BallRepository extends JpaRepository<Ball, String> {
     List<Ball> findByOverIdOrderByBallNumberAsc(String overId);
 
     List<Ball> findByInningsIdOrderByOverNumberAscBallNumberAsc(String inningsId);
+
+    Optional<Ball> findTopByInningsIdOrderByOverNumberDescBallNumberDesc(String inningsId);
 }

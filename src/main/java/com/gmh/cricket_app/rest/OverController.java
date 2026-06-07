@@ -1,5 +1,6 @@
 package com.gmh.cricket_app.rest;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -7,8 +8,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.gmh.cricket_app.dto.over.EndOverRequest;
 import com.gmh.cricket_app.dto.over.EndOverResponse;
+import com.gmh.cricket_app.dto.over.OverBallsRequest;
+import com.gmh.cricket_app.dto.over.OverBallsResponse;
 import com.gmh.cricket_app.dto.over.StartOverRequest;
 import com.gmh.cricket_app.dto.over.StartOverResponse;
+import com.gmh.cricket_app.service.OverBallsService;
 import com.gmh.cricket_app.service.OverService;
 
 import lombok.RequiredArgsConstructor;
@@ -19,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 public class OverController {
 
     private final OverService overService;
+    private final OverBallsService overBallsService;
 
     @PostMapping("/start")
     public StartOverResponse startOver(@RequestBody StartOverRequest req) {
@@ -28,5 +33,10 @@ public class OverController {
     @PostMapping("/end")
     public EndOverResponse endOver(@RequestBody EndOverRequest req) {
         return overService.endOver(req);
+    }
+
+    @GetMapping("/balls")
+    public OverBallsResponse getOverBalls(@RequestBody OverBallsRequest req) {
+        return overBallsService.getOverBalls(req.getSessionToken(), req.getOverId());
     }
 }
