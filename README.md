@@ -2,7 +2,7 @@
 
 > Cricket app for nerds.
 
-A REST API backend for managing cricket matches end-to-end — from registering players and teams, through toss and innings, all the way to match results. Built with Spring Boot 4, MySQL, and Flyway.
+A REST API backend for managing cricket matches end-to-end — from registering players and teams, through toss and innings, all the way to ball-by-ball scoring and match results. Built with Spring Boot 4, MySQL, and Flyway.
 
 ---
 
@@ -58,18 +58,50 @@ Flyway will automatically create all tables on first boot.
 
 ---
 
-## API Overview
+## API Design
+
+All requests use `Content-Type: application/json`.
+
+Every protected endpoint requires a `sessionToken` field in the **request body**. Sessions expire after **24 hours**.
+
+> Note: GET endpoints in this API also use a JSON request body. This is intentional and consistent across the entire codebase.
+
+---
+
+## Enums Reference
+
+| Enum | Values |
+|---|---|
+| `MatchStatus` | `NOT_STARTED` `IN_PROGRESS` `COMPLETED` `ABANDONED` `CANCELLED` |
+| `InningsStatus` | `ACTIVE` `COMPLETED` |
+| `OverStatus` | `ACTIVE` `COMPLETED` |
+| `TossResult` | `HEAD` `TAIL` |
+| `TossDecision` | `BAT_FIRST` `BOWL_FIRST` |
+| `ExtraType` | `WIDE` `NO_BALL` `BYE` `LEG_BYE` |
+| `BoundaryType` | `FOUR` `SIX` |
+| `WicketType` | `BOWLED` `CAUGHT` `RUN_OUT` `LBW` `STUMPED` `HIT_WICKET` `RETIRED_HURT` `OBSTRUCTING_FIELD` `TIMED_OUT` |
+| `PlayerTypes` | `Batsman` `Baller` `AllRounder` `WicketKeeper` |
+| `Gender` | `Male` `Female` |
+
+---
+
+## API Reference
 
 ### Auth — `/users`
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/users/register` | Register a new user |
-| POST | `/users/login` | Login and receive a session token |
-| POST | `/users/logout` | Invalidate session |
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/users/register` | — | Register a new user |
+| POST | `/users/login` | — | Login and receive a session token |
+| POST | `/users/logout` | Header | Invalidate session |
+| POST | `/users/validateSession` | Header | Validate an active session |
 
-All protected endpoints require a `sessionToken` in the request body.
-Sessions expire after **24 hours**.
+> `/logout` and `/validateSession` use `Session-Token` request header, not request body.
+
+**Login response:**
+```json
+{ "sessionToken": "", "userId": "", "username": "" }
+```
 
 ---
 
@@ -77,9 +109,21 @@ Sessions expire after **24 hours**.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/players/save` | Create or update a player |
-| GET | `/players/{id}` | Get player by ID |
-| GET | `/players` | List all players |
+| POST | `/players/save` | Create a new player |
+| GET | `/players/get` | Get a player by ID |
+| GET | `/players/get-all` | List all players |
+| GET | `/players/get-by-name` | Search players by name |
+
+**Save player:**
+```json
+{
+  "sessionToken": "",
+  "name": "",
+  "age": 25,
+  "gender": "Male",
+  "type": "Batsman"
+}
+```
 
 ---
 
@@ -92,6 +136,15 @@ Sessions expire after **24 hours**.
 | POST | `/teams/delete` | Delete a team |
 | POST | `/teams/add-player` | Add a player to a team |
 | POST | `/teams/remove-player` | Remove a player from a team |
+| GET | `/teams/players` | List all players in a team |
+
+**Get team players response:**
+```json
+{
+  "teamId": "",
+  "players": [{ "playerId": "", "name": "", "type": "Batsman" }]
+}
+```
 
 ---
 
@@ -102,22 +155,63 @@ Sessions expire after **24 hours**.
 | POST | `/matches/host` | Create a new match |
 | POST | `/matches/start` | Start a hosted match |
 | POST | `/matches/end` | End or cancel a match |
-| GET | `/matches/details` | Get match details |
+| GET | `/matches/getDetails` | Get full match details |
+| GET | `/matches/list` | List all matches hosted by the session user |
+| GET | `/matches/live-state` | Get real-time match state (innings, over, last batsmen) |
+| GET | `/matches/score` | Get full scorecard for a match |
 
-**Hosting a match:**
+**Host a match:**
 ```json
 {
-  "sessionToken": "...",
-  "teamAId": "...",
-  "teamBId": "...",
+  "sessionToken": "",
+  "teamAId": "",
+  "teamBId": "",
   "format": "T20",
   "totalOvers": 20,
   "plannedStartTime": 1748908800000,
   "parentMatchId": null
 }
 ```
-Set `totalOvers: 0` for a Test match (unlimited overs).
+
+Set `totalOvers: 0` for a Test match (unlimited overs).  
 Set `parentMatchId` to link a super over back to its parent match.
+
+**Live state response:**
+```json
+{
+  "matchId": "",
+  "format": "T20",
+  "status": "IN_PROGRESS",
+  "totalOvers": 20,
+  "teamAId": "",
+  "teamBId": "",
+  "activeInnings": {
+    "inningsId": "",
+    "inningsNumber": 1,
+    "battingTeamId": "",
+    "bowlingTeamId": "",
+    "status": "ACTIVE",
+    "totalRuns": 45,
+    "wickets": 2,
+    "oversCompleted": 5,
+    "extras": 3,
+    "target": null
+  },
+  "activeOver": {
+    "overId": "",
+    "overNumber": 6,
+    "bowlerId": "",
+    "status": "ACTIVE",
+    "legalBallCount": 3,
+    "totalRuns": 8,
+    "wickets": 0
+  },
+  "lastBatsmanId": "",
+  "lastNonStrikerId": ""
+}
+```
+
+`target` is `null` for innings 1; for innings 2 in limited-overs it is `firstInningsRuns + 1`.
 
 ---
 
@@ -127,9 +221,18 @@ Set `parentMatchId` to link a super over back to its parent match.
 |---|---|---|
 | POST | `/toss/conduct` | Record toss result and decision |
 | GET | `/toss` | Get toss details for a match |
-| GET | `/toss/flip` | Flip a coin (returns HEAD or TAIL) |
+| GET | `/toss/flip` | Flip a coin (returns `HEAD` or `TAIL`) |
 
-Must be conducted after match starts. `decision` is `BAT_FIRST` or `BOWL_FIRST`.
+**Conduct toss:**
+```json
+{
+  "sessionToken": "",
+  "matchId": "",
+  "tossResult": "HEAD",
+  "winnerTeamId": "",
+  "decision": "BAT_FIRST"
+}
+```
 
 ---
 
@@ -140,19 +243,22 @@ Must be conducted after match starts. `decision` is `BAT_FIRST` or `BOWL_FIRST`.
 | POST | `/innings/start` | Start a new innings |
 | POST | `/innings/end` | End the current innings |
 
-**Starting an innings:**
+**Start innings:**
 ```json
 {
-  "sessionToken": "...",
-  "matchId": "...",
-  "battingTeamId": "...",
-  "bowlingTeamId": "..."
+  "sessionToken": "",
+  "matchId": "",
+  "battingTeamId": "",
+  "bowlingTeamId": ""
 }
 ```
 
-Batting and bowling teams are provided explicitly — the server handles all formats (T20, ODI, Test, custom, super over) without special-casing. Follow-on is handled naturally by providing the same team again for innings 3.
+Batting and bowling teams are always provided explicitly. All formats (T20, ODI, Test, super over, follow-on) are handled without special-casing.
 
-**Innings ID format:** `{matchId}-INN-{inningsNumber}`
+**Auto-end:** An innings ends automatically when:
+- 10 wickets fall
+- The over limit is reached (limited-overs only)
+- The target is chased (innings 2, limited-overs only)
 
 ---
 
@@ -160,12 +266,106 @@ Batting and bowling teams are provided explicitly — the server handles all for
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/overs/start` | Start a new over |
+| POST | `/overs/start` | Start a new over, assign a bowler |
 | POST | `/overs/end` | End the current over |
+| GET | `/overs/balls` | Get ball-by-ball breakdown of an over |
 
-The bowler must belong to the bowling team. Over limit is enforced automatically for non-Test matches.
+**Start over:**
+```json
+{ "sessionToken": "", "inningsId": "", "bowlerId": "" }
+```
 
-**Over ID format:** `{inningsId}-OVR-{overNumber}`
+**Auto-end:** An over completes automatically after 6 legal deliveries.
+
+---
+
+### Balls — `/balls`
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/balls/record` | Record a single delivery |
+
+**Record a ball:**
+```json
+{
+  "sessionToken": "",
+  "overId": "",
+  "batsmanId": "",
+  "nonStrikerId": "",
+  "runs": 0,
+  "extraRuns": 0,
+  "extraType": null,
+  "boundaryType": null,
+  "bowlerId": null,
+  "wicket": false
+}
+```
+
+- `runs` — runs off the bat (0–6)
+- `extraRuns` — wides, no-ball penalties, byes, or leg-byes
+- `extraType` — `WIDE` / `NO_BALL` / `BYE` / `LEG_BYE` / `null` for normal delivery
+- `boundaryType` — `FOUR` / `SIX` / `null`
+- `bowlerId` — optional override; defaults to the over's assigned bowler
+- `wicket` — set `true` if a wicket fell; follow up immediately with `POST /wickets/record`
+
+**Response:**
+```json
+{
+  "ballId": "",
+  "overId": "",
+  "inningsId": "",
+  "ballNumber": 3,
+  "legalDelivery": true,
+  "runs": 4,
+  "extraRuns": 0,
+  "extraType": null,
+  "boundaryType": "FOUR",
+  "wicket": false,
+  "legalBallsInOver": 3,
+  "overCompleted": false,
+  "inningsCompleted": false
+}
+```
+
+Check `overCompleted` and `inningsCompleted` in the response — no need to call `/overs/end` or `/innings/end` when these are `true`.
+
+---
+
+### Wickets — `/wickets`
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/wickets/record` | Record wicket details for a ball |
+
+**This is a two-step flow.** First call `POST /balls/record` with `wicket: true`, then immediately call this endpoint with the returned `ballId`.
+
+**Record wicket:**
+```json
+{
+  "sessionToken": "",
+  "ballId": "",
+  "playerOutId": "",
+  "type": "CAUGHT",
+  "bowlerId": "",
+  "fielderId": ""
+}
+```
+
+- `bowlerId` — set `null` for run-outs, obstructing field, etc.
+- `fielderId` — set `null` if no fielder involved
+
+**Response:**
+```json
+{
+  "wicketId": "",
+  "ballId": "",
+  "inningsId": "",
+  "playerOutId": "",
+  "type": "CAUGHT",
+  "wicketNumber": 3,
+  "teamScoreAtFall": 87
+}
+```
 
 ---
 
@@ -173,15 +373,15 @@ The bowler must belong to the bowling team. Over limit is enforced automatically
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/match-result/complete` | Finalise match and calculate result |
-| GET | `/match-result` | Get persisted result for a match |
+| POST | `/match-result/complete` | Calculate and persist the match result |
+| GET | `/match-result` | Get the persisted result for a match |
 
-Results are calculated from innings aggregates and persisted once — no recalculation on subsequent reads.
+Results are calculated once and stored. Subsequent reads return the stored result.
 
 **Result types handled automatically:**
-- Won by X wickets (chasing team wins in last innings)
+- Won by X wickets (chasing team wins)
 - Won by X runs (defending team wins)
-- Won by an innings and X runs (Test — winner only needed one innings)
+- Won by an innings and X runs (Test match)
 - Match tied
 
 ---
@@ -189,29 +389,43 @@ Results are calculated from innings aggregates and persisted once — no recalcu
 ## Match Lifecycle
 
 ```
-Host Match (NOT_STARTED)
-    │
-    ▼
-Start Match (IN_PROGRESS)
-    │
-    ▼
+Host Match  →  NOT_STARTED
+     │
+     ▼
+Start Match  →  IN_PROGRESS
+     │
+     ▼
 Conduct Toss
-    │
-    ▼
-Start Innings ──► Start Over ──► End Over ──► (repeat)
-    │
-    ▼
-End Innings
-    │
-    ▼
-(repeat for remaining innings)
-    │
-    ▼
-Complete Match ──► Result persisted (COMPLETED)
+     │
+     ▼
+Start Innings
+     │
+     ▼
+Start Over (assign bowler)
+     │
+     ▼
+Record Ball  ──►  [if wicket: true]  ──►  Record Wicket
+     │
+     │  (repeat per ball)
+     │
+     ▼
+Over auto-completes after 6 legal balls
+     │
+     ▼
+Start next Over  (repeat)
+     │
+     ▼
+Innings auto-ends on: 10 wickets / over limit / target chased
+     │
+     ▼
+Start 2nd Innings  (repeat from Over step)
+     │
+     ▼
+Complete Match  →  Result persisted
+     │
+     ▼
+End Match  →  COMPLETED
 ```
-
-For **Test matches**, up to 4 innings are supported.
-For **super overs**, create a new 1-over match with `parentMatchId` pointing to the tied match.
 
 ---
 
@@ -220,13 +434,13 @@ For **super overs**, create a new 1-over match with `parentMatchId` pointing to 
 ```yaml
 cricket:
   match:
-    id-length: 12     # Length of generated match IDs
+    id-length: 12
   team:
-    id-length: 8      # Length of generated team IDs
+    id-length: 8
 
 session:
   duration:
-    ms: 86400000      # Session TTL in milliseconds (default: 24h)
+    ms: 86400000
 ```
 
 ---
@@ -248,8 +462,7 @@ Migrations live in `src/main/resources/db/migration/` and run automatically on s
 | V9 | Cleanup + add parent_match_id |
 | V10 | Create match_result table |
 | V11 | Add over status and bowler |
-
-> **Note:** Before first production deploy, V1–V11 will be consolidated into a single clean migration.
+| V12 | Add ball extra_runs, boundary_type, bowler_id |
 
 ---
 
