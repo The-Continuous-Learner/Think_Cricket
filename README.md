@@ -80,7 +80,7 @@ Every protected endpoint requires a `sessionToken` field in the **request body**
 | `ExtraType` | `WIDE` `NO_BALL` `BYE` `LEG_BYE` |
 | `BoundaryType` | `FOUR` `SIX` |
 | `WicketType` | `BOWLED` `CAUGHT` `RUN_OUT` `LBW` `STUMPED` `HIT_WICKET` `RETIRED_HURT` `OBSTRUCTING_FIELD` `TIMED_OUT` |
-| `PlayerTypes` | `Batsman` `Baller` `AllRounder` `WicketKeeper` |
+| `PlayerTypes` | `Batsman` `Bowler` `AllRounder` `WicketKeeper` |
 | `Gender` | `Male` `Female` |
 
 ---
