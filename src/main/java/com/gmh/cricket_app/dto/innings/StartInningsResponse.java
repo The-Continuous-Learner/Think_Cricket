@@ -13,7 +13,9 @@ public class StartInningsResponse {
     private String matchId;
     private int inningsNumber;
     private String battingTeamId;
+    private String battingTeamName;
     private String bowlingTeamId;
+    private String bowlingTeamName;
     private Integer target; // null for innings 1, set for innings 2
     private InningsStatus status;
 }

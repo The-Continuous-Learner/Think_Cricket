@@ -8,6 +8,7 @@ import lombok.Getter;
 public class BattingLine {
 
     private String playerId;
+    private String playerName;
     private int battingPosition;
     private int runs;
     private int balls;

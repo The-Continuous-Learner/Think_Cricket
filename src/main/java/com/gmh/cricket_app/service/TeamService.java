@@ -1,5 +1,7 @@
 package com.gmh.cricket_app.service;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -34,7 +36,7 @@ public class TeamService {
 
     public Team createTeam(CreateTeamRequest req) {
 
-        sessionService.validateSession(req.getSessionToken());
+        String userId = sessionService.validateSession(req.getSessionToken()).getId();
 
         if (teamRepo.existsByName(req.getName())) {
             log.warn("Create team failed - name already exists: {}", req.getName());
@@ -45,6 +47,7 @@ public class TeamService {
         team.setId(CommonUtil.generateId(teamIdLength));
         team.setName(req.getName());
         team.setDescription(req.getDescription());
+        team.setCreatedByUserId(userId);
 
         teamRepo.save(team);
 
@@ -109,6 +112,11 @@ public class TeamService {
         mapperRepo.save(new TeamPlayerMapper(req.getTeamId(), req.getPlayerId()));
 
         log.info("Player added to team: teamId={}, playerId={}", req.getTeamId(), req.getPlayerId());
+    }
+
+    public List<Team> getMyTeams(String sessionToken) {
+        String userId = sessionService.validateSession(sessionToken).getId();
+        return teamRepo.findByCreatedByUserId(userId);
     }
 
     @Transactional

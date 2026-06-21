@@ -1,5 +1,7 @@
 package com.gmh.cricket_app.rest;
 
+import java.util.List;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.gmh.cricket_app.dto.team.AddPlayerToTeamRequest;
 import com.gmh.cricket_app.dto.team.CreateTeamRequest;
 import com.gmh.cricket_app.dto.team.DeleteTeamRequest;
+import com.gmh.cricket_app.dto.team.GetMyTeamsRequest;
 import com.gmh.cricket_app.dto.team.ModifyTeamRequest;
 import com.gmh.cricket_app.dto.team.RemovePlayerFromTeamRequest;
 import com.gmh.cricket_app.dto.team.TeamPlayersRequest;
@@ -55,5 +58,10 @@ public class TeamController {
     @GetMapping("/players")
     public TeamPlayersResponse getTeamPlayers(@RequestBody TeamPlayersRequest req) {
         return teamPlayersService.getTeamPlayers(req.getSessionToken(), req.getTeamId());
+    }
+
+    @GetMapping("/my")
+    public List<Team> getMyTeams(@RequestBody GetMyTeamsRequest req) {
+        return teamService.getMyTeams(req.getSessionToken());
     }
 }

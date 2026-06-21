@@ -16,6 +16,8 @@ public class MatchScoreResponse {
     private MatchStatus status;
     private int totalOvers;
     private String teamAId;
+    private String teamAName;
     private String teamBId;
+    private String teamBName;
     private List<InningsSummary> innings;
 }

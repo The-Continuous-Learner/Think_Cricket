@@ -11,6 +11,7 @@ public class ActiveOverSummary {
     private String overId;
     private int overNumber;
     private String bowlerId;
+    private String bowlerName;
     private OverStatus status;
     private int legalBallCount;
     private int totalRuns;

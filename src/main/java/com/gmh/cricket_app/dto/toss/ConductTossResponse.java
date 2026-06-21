@@ -14,6 +14,8 @@ public class ConductTossResponse {
     private String matchId;
     private TossResult tossResult;
     private String winnerTeamId;
+    private String winnerTeamName;
     private String loserTeamId;
+    private String loserTeamName;
     private TossDecision decision;
 }

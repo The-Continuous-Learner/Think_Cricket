@@ -21,12 +21,13 @@ public class PlayerService {
     private final SessionService sessionService;
 
     public Player savePlayer(String sessionToken, SavePlayerRequest req) {
-        sessionService.validateSession(sessionToken);
+        String userId = sessionService.validateSession(sessionToken).getId();
         Player player = new Player();
         player.setName(req.getName());
         player.setAge(req.getAge());
         player.setGender(req.getGender());
         player.setType(req.getType());
+        player.setCreatedByUserId(userId);
         Player saved = playerRepository.save(player);
         log.info("Player saved: playerId={}, name={}", saved.getId(), saved.getName());
         return saved;
@@ -38,8 +39,8 @@ public class PlayerService {
     }
 
     public List<Player> getAllPlayers(String sessionToken) {
-        sessionService.validateSession(sessionToken);
-        return playerRepository.findAll();
+        String userId = sessionService.validateSession(sessionToken).getId();
+        return playerRepository.findByCreatedByUserId(userId);
     }
 
     public List<Player> getPlayersByName(String sessionToken, String name) {

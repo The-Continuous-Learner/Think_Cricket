@@ -66,5 +66,10 @@ public class MatchController {
     public LiveStateResponse getLiveState(@RequestBody LiveStateRequest request) {
         return matchReadService.getLiveState(request.getSessionToken(), request.getMatchId());
     }
+
+    @GetMapping("/recent")
+    public List<MatchSummary> getRecentMatches(@RequestBody MatchListRequest request) {
+        return matchReadService.getRecentMatches(request.getSessionToken());
+    }
 }
 

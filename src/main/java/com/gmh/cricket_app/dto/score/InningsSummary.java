@@ -13,7 +13,9 @@ public class InningsSummary {
 
     private int inningsNumber;
     private String battingTeamId;
+    private String battingTeamName;
     private String bowlingTeamId;
+    private String bowlingTeamName;
     private InningsStatus status;
     private int totalRuns;
     private int wickets;

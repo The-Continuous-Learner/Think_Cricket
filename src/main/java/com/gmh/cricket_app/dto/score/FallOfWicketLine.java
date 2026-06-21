@@ -12,6 +12,9 @@ public class FallOfWicketLine {
     private int overNumber;
     private int ballNumber;
     private String playerOutId;
+    private String playerOutName;
     private String bowlerId;
+    private String bowlerName;
     private String fielderId;
+    private String fielderName;
 }

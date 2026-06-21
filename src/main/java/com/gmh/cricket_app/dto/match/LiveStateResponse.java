@@ -13,9 +13,13 @@ public class LiveStateResponse {
     private MatchStatus status;
     private int totalOvers;
     private String teamAId;
+    private String teamAName;
     private String teamBId;
-    private ActiveInningsSummary activeInnings; // null if no active innings
-    private ActiveOverSummary activeOver;        // null if no active over
-    private String lastBatsmanId;               // null if no balls bowled yet
-    private String lastNonStrikerId;            // null if no balls bowled yet
+    private String teamBName;
+    private ActiveInningsSummary activeInnings;
+    private ActiveOverSummary activeOver;
+    private String lastBatsmanId;
+    private String lastBatsmanName;
+    private String lastNonStrikerId;
+    private String lastNonStrikerName;
 }

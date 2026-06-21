@@ -8,6 +8,7 @@ import lombok.Getter;
 public class BowlingLine {
 
     private String bowlerId;
+    private String bowlerName;
     private int overs;
     private int ballsBowled;
     private int maidens;

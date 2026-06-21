@@ -1,5 +1,6 @@
 package com.gmh.cricket_app.models.team;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -23,4 +24,7 @@ public class Team {
     private String name;
 
     private String description;
+
+    @Column(name = "created_by_user_id")
+    private String createdByUserId;
 }

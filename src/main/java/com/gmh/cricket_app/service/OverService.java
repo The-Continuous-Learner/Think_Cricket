@@ -13,9 +13,11 @@ import com.gmh.cricket_app.exceptions.BadRequestException;
 import com.gmh.cricket_app.models.Innings;
 import com.gmh.cricket_app.models.Match;
 import com.gmh.cricket_app.models.Over;
+import com.gmh.cricket_app.models.Player;
 import com.gmh.cricket_app.repositories.InningsRepository;
 import com.gmh.cricket_app.repositories.MatchRepository;
 import com.gmh.cricket_app.repositories.OverRepository;
+import com.gmh.cricket_app.repositories.PlayerRepository;
 import com.gmh.cricket_app.repositories.TeamPlayerMapperRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ public class OverService {
     private final MatchRepository matchRepo;
     private final TeamPlayerMapperRepository teamPlayerMapperRepo;
     private final SessionService sessionService;
+    private final PlayerRepository playerRepo;
 
     public StartOverResponse startOver(StartOverRequest req) {
 
@@ -83,12 +86,15 @@ public class OverService {
         log.info("Over started: overId={}, inningsId={}, overNumber={}, bowler={}",
                 over.getId(), innings.getId(), overNumber, req.getBowlerId());
 
+        String bowlerName = playerRepo.findById(over.getBowlerId()).map(Player::getName).orElse(null);
+
         return new StartOverResponse(
                 over.getId(),
                 over.getInningsId(),
                 over.getMatchId(),
                 over.getOverNumber(),
                 over.getBowlerId(),
+                bowlerName,
                 over.getStatus()
         );
     }
@@ -117,11 +123,14 @@ public class OverService {
                 over.getId(), innings.getId(), over.getOverNumber(),
                 over.getTotalRuns(), over.getWickets(), innings.getOversCompleted());
 
+        String bowlerName = playerRepo.findById(over.getBowlerId()).map(Player::getName).orElse(null);
+
         return new EndOverResponse(
                 over.getId(),
                 over.getInningsId(),
                 over.getOverNumber(),
                 over.getBowlerId(),
+                bowlerName,
                 over.getTotalRuns(),
                 over.getWickets(),
                 over.getStatus(),

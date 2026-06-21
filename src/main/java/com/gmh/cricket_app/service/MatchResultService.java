@@ -14,9 +14,11 @@ import com.gmh.cricket_app.exceptions.BadRequestException;
 import com.gmh.cricket_app.models.Innings;
 import com.gmh.cricket_app.models.Match;
 import com.gmh.cricket_app.models.MatchResult;
+import com.gmh.cricket_app.models.team.Team;
 import com.gmh.cricket_app.repositories.InningsRepository;
 import com.gmh.cricket_app.repositories.MatchRepository;
 import com.gmh.cricket_app.repositories.MatchResultRepository;
+import com.gmh.cricket_app.repositories.TeamRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +32,7 @@ public class MatchResultService {
     private final InningsRepository inningsRepo;
     private final MatchResultRepository matchResultRepo;
     private final SessionService sessionService;
+    private final TeamRepository teamRepo;
 
     public CompleteMatchResponse completeMatch(CompleteMatchRequest req) {
 
@@ -115,10 +118,15 @@ public class MatchResultService {
 
         log.info("Match completed: matchId={}, result={}", match.getId(), resultText);
 
+        String winnerTeamName = winnerTeamId != null ? teamRepo.findById(winnerTeamId).map(Team::getName).orElse(null) : null;
+        String loserTeamName = loserTeamId != null ? teamRepo.findById(loserTeamId).map(Team::getName).orElse(null) : null;
+
         return new CompleteMatchResponse(
                 match.getId(),
                 winnerTeamId,
+                winnerTeamName,
                 loserTeamId,
+                loserTeamName,
                 isDraw,
                 resultText,
                 decidedBySuperOver
@@ -135,10 +143,15 @@ public class MatchResultService {
         MatchResult result = matchResultRepo.findByMatchId(matchId)
                 .orElseThrow(() -> new BadRequestException("Result not yet available for this match"));
 
+        String winnerTeamName = result.getWinnerTeamId() != null ? teamRepo.findById(result.getWinnerTeamId()).map(Team::getName).orElse(null) : null;
+        String loserTeamName = result.getLoserTeamId() != null ? teamRepo.findById(result.getLoserTeamId()).map(Team::getName).orElse(null) : null;
+
         return new CompleteMatchResponse(
                 result.getMatchId(),
                 result.getWinnerTeamId(),
+                winnerTeamName,
                 result.getLoserTeamId(),
+                loserTeamName,
                 result.isDraw(),
                 result.getResultText(),
                 result.isDecidedBySuperOver()

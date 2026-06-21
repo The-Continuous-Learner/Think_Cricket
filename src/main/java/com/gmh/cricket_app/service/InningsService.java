@@ -13,8 +13,10 @@ import com.gmh.cricket_app.enums.MatchStatus;
 import com.gmh.cricket_app.exceptions.BadRequestException;
 import com.gmh.cricket_app.models.Innings;
 import com.gmh.cricket_app.models.Match;
+import com.gmh.cricket_app.models.team.Team;
 import com.gmh.cricket_app.repositories.InningsRepository;
 import com.gmh.cricket_app.repositories.MatchRepository;
+import com.gmh.cricket_app.repositories.TeamRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,7 @@ public class InningsService {
     private final InningsRepository inningsRepo;
     private final MatchRepository matchRepo;
     private final SessionService sessionService;
+    private final TeamRepository teamRepo;
 
     public StartInningsResponse startInnings(StartInningsRequest req) {
 
@@ -91,12 +94,17 @@ public class InningsService {
         log.info("Innings started: inningsId={}, inningsNumber={}, battingTeam={}, bowlingTeam={}",
                 innings.getId(), inningsNumber, req.getBattingTeamId(), req.getBowlingTeamId());
 
+        String battingTeamName = teamRepo.findById(req.getBattingTeamId()).map(Team::getName).orElse(null);
+        String bowlingTeamName = teamRepo.findById(req.getBowlingTeamId()).map(Team::getName).orElse(null);
+
         return new StartInningsResponse(
                 innings.getId(),
                 innings.getMatchId(),
                 innings.getInningsNumber(),
                 innings.getBattingTeamId(),
+                battingTeamName,
                 innings.getBowlingTeamId(),
+                bowlingTeamName,
                 null,
                 innings.getStatus()
         );

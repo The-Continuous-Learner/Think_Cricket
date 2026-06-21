@@ -13,6 +13,7 @@ public class EndOverResponse {
     private String inningsId;
     private int overNumber;
     private String bowlerId;
+    private String bowlerName;
     private int totalRuns;
     private int wickets;
     private OverStatus status;

@@ -14,7 +14,9 @@ public class MatchDetailsResponse {
     private String matchId;
 
     private String teamAId;
+    private String teamAName;
     private String teamBId;
+    private String teamBName;
 
     private String format;
     private int totalOvers;

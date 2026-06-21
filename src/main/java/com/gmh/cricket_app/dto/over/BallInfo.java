@@ -17,7 +17,10 @@ public class BallInfo {
     private ExtraType extraType;
     private BoundaryType boundaryType;
     private String batsmanId;
+    private String batsmanName;
     private String nonStrikerId;
+    private String nonStrikerName;
     private String bowlerId;
+    private String bowlerName;
     private boolean wicket;
 }

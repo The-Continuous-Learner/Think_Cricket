@@ -1,6 +1,7 @@
 package com.gmh.cricket_app.service;
 
 import java.util.List;
+import java.util.Map;
 
 import com.gmh.cricket_app.dto.match.EndMatchRequest;
 import com.gmh.cricket_app.dto.match.EndMatchResponse;
@@ -13,6 +14,7 @@ import com.gmh.cricket_app.enums.MatchStatus;
 import com.gmh.cricket_app.exceptions.BadRequestException;
 import com.gmh.cricket_app.models.Match;
 import com.gmh.cricket_app.models.User.User;
+import com.gmh.cricket_app.models.team.Team;
 import com.gmh.cricket_app.repositories.MatchRepository;
 import com.gmh.cricket_app.repositories.TeamRepository;
 import com.gmh.cricket_app.util.CommonUtil;
@@ -157,10 +159,13 @@ public class MatchService {
         Match match = matchRepo.findById(matchId)
                 .orElseThrow(() -> new BadRequestException("Match not found"));
 
+        Map<String, String> teamNames = teamRepo.findAllById(List.of(match.getTeamAId(), match.getTeamBId()))
+                .stream().collect(java.util.stream.Collectors.toMap(Team::getId, Team::getName));
+
         return new MatchDetailsResponse(
                 match.getId(),
-                match.getTeamAId(),
-                match.getTeamBId(),
+                match.getTeamAId(), teamNames.get(match.getTeamAId()),
+                match.getTeamBId(), teamNames.get(match.getTeamBId()),
                 match.getFormat(),
                 match.getTotalOvers(),
                 match.getStatus(),

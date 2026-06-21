@@ -11,7 +11,9 @@ public class ActiveInningsSummary {
     private String inningsId;
     private int inningsNumber;
     private String battingTeamId;
+    private String battingTeamName;
     private String bowlingTeamId;
+    private String bowlingTeamName;
     private InningsStatus status;
     private int totalRuns;
     private int wickets;

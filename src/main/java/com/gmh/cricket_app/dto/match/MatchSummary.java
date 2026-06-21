@@ -13,7 +13,9 @@ public class MatchSummary {
     private MatchStatus status;
     private int totalOvers;
     private String teamAId;
+    private String teamAName;
     private String teamBId;
+    private String teamBName;
     private long plannedStartTime;
     private Long actualStartTime;
 }

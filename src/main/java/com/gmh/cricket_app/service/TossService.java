@@ -11,7 +11,9 @@ import com.gmh.cricket_app.enums.TossResult;
 import com.gmh.cricket_app.exceptions.BadRequestException;
 import com.gmh.cricket_app.models.Match;
 import com.gmh.cricket_app.models.Toss;
+import com.gmh.cricket_app.models.team.Team;
 import com.gmh.cricket_app.repositories.MatchRepository;
+import com.gmh.cricket_app.repositories.TeamRepository;
 import com.gmh.cricket_app.repositories.TossRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ public class TossService {
     private final TossRepository tossRepo;
     private final MatchRepository matchRepo;
     private final SessionService sessionService;
+    private final TeamRepository teamRepo;
 
     public ConductTossResponse conductToss(ConductTossRequest req) {
 
@@ -64,12 +67,17 @@ public class TossService {
         log.info("Toss conducted: matchId={}, result={}, winner={}, decision={}",
                 toss.getMatchId(), toss.getTossResult(), toss.getWinnerTeamId(), toss.getDecision());
 
+        String winnerTeamName = teamRepo.findById(winnerTeamId).map(Team::getName).orElse(null);
+        String loserTeamName = teamRepo.findById(loserTeamId).map(Team::getName).orElse(null);
+
         return new ConductTossResponse(
                 toss.getId(),
                 toss.getMatchId(),
                 toss.getTossResult(),
                 toss.getWinnerTeamId(),
+                winnerTeamName,
                 loserTeamId,
+                loserTeamName,
                 toss.getDecision()
         );
     }
@@ -88,12 +96,17 @@ public class TossService {
                 ? match.getTeamBId()
                 : match.getTeamAId();
 
+        String winnerTeamName = teamRepo.findById(toss.getWinnerTeamId()).map(Team::getName).orElse(null);
+        String loserTeamName = teamRepo.findById(loserTeamId).map(Team::getName).orElse(null);
+
         return new ConductTossResponse(
                 toss.getId(),
                 toss.getMatchId(),
                 toss.getTossResult(),
                 toss.getWinnerTeamId(),
+                winnerTeamName,
                 loserTeamId,
+                loserTeamName,
                 toss.getDecision()
         );
     }

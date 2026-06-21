@@ -14,5 +14,6 @@ public class StartOverResponse {
     private String matchId;
     private int overNumber;
     private String bowlerId;
+    private String bowlerName;
     private OverStatus status;
 }

@@ -40,7 +40,6 @@ public class MatchReadService {
     private final BallRepository ballRepo;
     private final SessionService sessionService;
     private final TeamRepository teamRepo;
-    private final PlayerRepository playerRepo;
 
     public List<MatchSummary> getMatchList(String sessionToken) {
         User user = sessionService.validateSession(sessionToken);
@@ -75,9 +74,6 @@ public class MatchReadService {
         Match match = matchRepo.findById(matchId)
                 .orElseThrow(() -> new BadRequestException("Match not found"));
 
-        Map<String, String> teamNames = teamRepo.findAllById(Set.of(match.getTeamAId(), match.getTeamBId()))
-                .stream().collect(Collectors.toMap(Team::getId, Team::getName));
-
         List<Innings> inningsList = inningsRepo.findByMatchIdOrderByInningsNumberAsc(matchId);
 
         Innings activeInnings = inningsList.stream()
@@ -88,9 +84,7 @@ public class MatchReadService {
         if (activeInnings == null) {
             return new LiveStateResponse(
                     match.getId(), match.getFormat(), match.getStatus(), match.getTotalOvers(),
-                    match.getTeamAId(), teamNames.get(match.getTeamAId()),
-                    match.getTeamBId(), teamNames.get(match.getTeamBId()),
-                    null, null, null, null, null, null);
+                    match.getTeamAId(), match.getTeamBId(), null, null, null, null);
         }
 
         Integer target = null;
@@ -106,9 +100,7 @@ public class MatchReadService {
                 activeInnings.getId(),
                 activeInnings.getInningsNumber(),
                 activeInnings.getBattingTeamId(),
-                teamNames.get(activeInnings.getBattingTeamId()),
                 activeInnings.getBowlingTeamId(),
-                teamNames.get(activeInnings.getBowlingTeamId()),
                 activeInnings.getStatus(),
                 activeInnings.getTotalRuns(),
                 activeInnings.getWickets(),
@@ -121,38 +113,26 @@ public class MatchReadService {
                 .findByInningsIdAndStatus(activeInnings.getId(), OverStatus.ACTIVE)
                 .orElse(null);
 
-        Ball lastBall = ballRepo
-                .findTopByInningsIdOrderByOverNumberDescBallNumberDesc(activeInnings.getId())
-                .orElse(null);
-
-        Set<String> playerIdSet = new java.util.HashSet<>();
-        if (activeOver != null) playerIdSet.add(activeOver.getBowlerId());
-        if (lastBall != null) { playerIdSet.add(lastBall.getBatsmanId()); playerIdSet.add(lastBall.getNonStrikerId()); }
-        Map<String, String> playerNames = playerIdSet.isEmpty() ? Map.of() :
-                playerRepo.findAllById(playerIdSet).stream()
-                        .collect(Collectors.toMap(Player::getId, Player::getName));
-
         ActiveOverSummary overSummary = activeOver == null ? null : new ActiveOverSummary(
                 activeOver.getId(),
                 activeOver.getOverNumber(),
                 activeOver.getBowlerId(),
-                playerNames.get(activeOver.getBowlerId()),
                 activeOver.getStatus(),
                 activeOver.getLegalBallCount(),
                 activeOver.getTotalRuns(),
                 activeOver.getWickets()
         );
 
-        String lastBatsmanId = lastBall != null ? lastBall.getBatsmanId() : null;
-        String lastNonStrikerId = lastBall != null ? lastBall.getNonStrikerId() : null;
+        Ball lastBall = ballRepo
+                .findTopByInningsIdOrderByOverNumberDescBallNumberDesc(activeInnings.getId())
+                .orElse(null);
 
         return new LiveStateResponse(
                 match.getId(), match.getFormat(), match.getStatus(), match.getTotalOvers(),
-                match.getTeamAId(), teamNames.get(match.getTeamAId()),
-                match.getTeamBId(), teamNames.get(match.getTeamBId()),
+                match.getTeamAId(), match.getTeamBId(),
                 inningsSummary, overSummary,
-                lastBatsmanId, playerNames.get(lastBatsmanId),
-                lastNonStrikerId, playerNames.get(lastNonStrikerId)
+                lastBall != null ? lastBall.getBatsmanId() : null,
+                lastBall != null ? lastBall.getNonStrikerId() : null
         );
     }
 }

@@ -5,6 +5,7 @@ import java.util.UUID;
 import com.gmh.cricket_app.enums.Gender;
 import com.gmh.cricket_app.enums.PlayerTypes;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -37,6 +38,9 @@ public class Player {
 
     @Enumerated(EnumType.STRING)
     private PlayerTypes type;
+
+    @Column(name = "created_by_user_id")
+    private String createdByUserId;
 
     @PrePersist
     public void generateId() {

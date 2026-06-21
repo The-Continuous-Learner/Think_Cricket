@@ -13,6 +13,8 @@ public interface MatchRepository extends JpaRepository<Match, String> {
 
     List<Match> findByHostedByUserId(String hostedByUserId);
 
+    List<Match> findByHostedByUserIdOrderByPlannedStartTimeDesc(String hostedByUserId);
+
     List<Match> findByStatus(MatchStatus status);
 
     @Query(value = "SELECT EXISTS (" +
