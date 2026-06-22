@@ -10,4 +10,6 @@ import lombok.Setter;
 public class SquadPlayerRequest {
     private String playerId;
     private PlayerRole role;
+    private boolean captain;
+    private boolean viceCaptain;
 }

@@ -68,10 +68,26 @@ public class MatchSquadService {
             }
         }
 
+        long captainCount = req.getPlayers().stream().filter(p -> p.isCaptain()).count();
+        long viceCaptainCount = req.getPlayers().stream().filter(p -> p.isViceCaptain()).count();
+
+        if (captainCount != 1) {
+            throw new BadRequestException("Exactly one captain must be declared");
+        }
+        if (viceCaptainCount > 1) {
+            throw new BadRequestException("At most one vice captain can be declared");
+        }
+
+        boolean captainAndVcAreSame = req.getPlayers().stream()
+                .anyMatch(p -> p.isCaptain() && p.isViceCaptain());
+        if (captainAndVcAreSame) {
+            throw new BadRequestException("Captain and vice captain must be different players");
+        }
+
         matchSquadRepo.deleteByMatchIdAndTeamId(req.getMatchId(), req.getTeamId());
 
         List<MatchSquad> squad = req.getPlayers().stream()
-                .map(p -> new MatchSquad(req.getMatchId(), req.getTeamId(), p.getPlayerId(), p.getRole()))
+                .map(p -> new MatchSquad(req.getMatchId(), req.getTeamId(), p.getPlayerId(), p.getRole(), p.isCaptain(), p.isViceCaptain()))
                 .collect(Collectors.toList());
 
         matchSquadRepo.saveAll(squad);
@@ -82,7 +98,7 @@ public class MatchSquadService {
                 .collect(Collectors.toMap(Player::getId, Player::getName));
 
         List<SquadPlayerEntry> entries = req.getPlayers().stream()
-                .map(p -> new SquadPlayerEntry(p.getPlayerId(), playerNames.get(p.getPlayerId()), p.getRole()))
+                .map(p -> new SquadPlayerEntry(p.getPlayerId(), playerNames.get(p.getPlayerId()), p.getRole(), p.isCaptain(), p.isViceCaptain()))
                 .collect(Collectors.toList());
 
         return new DeclareSquadResponse(req.getMatchId(), req.getTeamId(), entries);
@@ -161,7 +177,7 @@ public class MatchSquadService {
                 .collect(Collectors.toMap(Player::getId, Player::getName));
 
         List<SquadPlayerEntry> entries = squad.stream()
-                .map(s -> new SquadPlayerEntry(s.getPlayerId(), playerNames.get(s.getPlayerId()), s.getRole()))
+                .map(s -> new SquadPlayerEntry(s.getPlayerId(), playerNames.get(s.getPlayerId()), s.getRole(), s.isCaptain(), s.isViceCaptain()))
                 .collect(Collectors.toList());
 
         return new DeclareSquadResponse(req.getMatchId(), req.getTeamId(), entries);
@@ -171,6 +187,9 @@ public class MatchSquadService {
         sessionService.validateSession(req.getSessionToken());
 
         List<MatchSquad> squad = matchSquadRepo.findByMatchIdAndTeamId(req.getMatchId(), req.getTeamId());
+
+        Map<String, MatchSquad> squadMap = squad.stream()
+                .collect(Collectors.toMap(MatchSquad::getPlayerId, s -> s));
 
         Set<String> currentXI = squad.stream()
                 .filter(s -> s.getRole() == PlayerRole.PLAYING)
@@ -189,7 +208,12 @@ public class MatchSquadService {
                 .collect(Collectors.toMap(Player::getId, Player::getName));
 
         return currentXI.stream()
-                .map(pid -> new SquadPlayerEntry(pid, playerNames.get(pid), PlayerRole.PLAYING))
+                .map(pid -> {
+                    MatchSquad entry = squadMap.get(pid);
+                    boolean isCaptain = entry != null && entry.isCaptain();
+                    boolean isViceCaptain = entry != null && entry.isViceCaptain();
+                    return new SquadPlayerEntry(pid, playerNames.get(pid), PlayerRole.PLAYING, isCaptain, isViceCaptain);
+                })
                 .collect(Collectors.toList());
     }
 }

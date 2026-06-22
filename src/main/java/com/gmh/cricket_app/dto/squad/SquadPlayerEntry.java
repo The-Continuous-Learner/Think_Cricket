@@ -11,4 +11,6 @@ public class SquadPlayerEntry {
     private String playerId;
     private String playerName;
     private PlayerRole role;
+    private boolean captain;
+    private boolean viceCaptain;
 }

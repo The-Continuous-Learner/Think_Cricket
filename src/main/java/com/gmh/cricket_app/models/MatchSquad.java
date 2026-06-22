@@ -37,4 +37,10 @@ public class MatchSquad {
 
     @Enumerated(EnumType.STRING)
     private PlayerRole role;
+
+    @Column(name = "is_captain", nullable = false)
+    private boolean captain;
+
+    @Column(name = "is_vice_captain", nullable = false)
+    private boolean viceCaptain;
 }
