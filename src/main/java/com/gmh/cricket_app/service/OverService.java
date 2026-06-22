@@ -68,6 +68,13 @@ public class OverService {
             throw new BadRequestException("Bowler does not belong to the bowling team");
         }
 
+        overRepo.findTopByInningsIdAndStatusOrderByOverNumberDesc(req.getInningsId(), OverStatus.COMPLETED)
+                .ifPresent(prev -> {
+                    if (prev.getBowlerId().equals(req.getBowlerId())) {
+                        throw new BadRequestException("Bowler cannot bowl consecutive overs");
+                    }
+                });
+
         int overNumber = innings.getOversCompleted() + 1;
 
         Over over = new Over();

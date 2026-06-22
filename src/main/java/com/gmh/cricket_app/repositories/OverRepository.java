@@ -13,4 +13,6 @@ public interface OverRepository extends JpaRepository<Over, String> {
     List<Over> findByInningsIdOrderByOverNumberAsc(String inningsId);
 
     Optional<Over> findByInningsIdAndStatus(String inningsId, OverStatus status);
+
+    Optional<Over> findTopByInningsIdAndStatusOrderByOverNumberDesc(String inningsId, OverStatus status);
 }
