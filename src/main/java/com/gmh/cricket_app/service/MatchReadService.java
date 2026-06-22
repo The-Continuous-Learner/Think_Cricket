@@ -128,7 +128,7 @@ public class MatchReadService {
         Set<String> playerIdSet = new java.util.HashSet<>();
         if (activeOver != null) playerIdSet.add(activeOver.getBowlerId());
         if (lastBall != null) { playerIdSet.add(lastBall.getBatsmanId()); playerIdSet.add(lastBall.getNonStrikerId()); }
-        Map<String, String> playerNames = playerIdSet.isEmpty() ? Map.of() :
+        Map<String, String> playerNames = playerIdSet.isEmpty() ? new java.util.HashMap<>() :
                 playerRepo.findAllById(playerIdSet).stream()
                         .collect(Collectors.toMap(Player::getId, Player::getName));
 
