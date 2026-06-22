@@ -12,11 +12,13 @@ import com.gmh.cricket_app.models.Ball;
 import com.gmh.cricket_app.models.FallOfWicket;
 import com.gmh.cricket_app.models.Innings;
 import com.gmh.cricket_app.models.Wicket;
+import com.gmh.cricket_app.models.Over;
 import com.gmh.cricket_app.repositories.BallRepository;
 import com.gmh.cricket_app.repositories.BattingScoreRepository;
 import com.gmh.cricket_app.repositories.BowlingScoreRepository;
 import com.gmh.cricket_app.repositories.FallOfWicketRepository;
 import com.gmh.cricket_app.repositories.InningsRepository;
+import com.gmh.cricket_app.repositories.OverRepository;
 import com.gmh.cricket_app.repositories.TeamPlayerMapperRepository;
 import com.gmh.cricket_app.repositories.WicketRepository;
 
@@ -40,6 +42,7 @@ public class WicketService {
     private final BattingScoreRepository battingScoreRepo;
     private final BowlingScoreRepository bowlingScoreRepo;
     private final TeamPlayerMapperRepository teamPlayerMapperRepo;
+    private final OverRepository overRepo;
     private final SessionService sessionService;
 
     @Transactional
@@ -81,6 +84,9 @@ public class WicketService {
         wicketRepo.save(wicket);
 
         // --- Create FallOfWicket ---
+        Over over = overRepo.findById(ball.getOverId())
+                .orElseThrow(() -> new BadRequestException("Over not found"));
+
         FallOfWicket fow = new FallOfWicket();
         fow.setId(innings.getId() + "-FOW-" + wicketNumber);
         fow.setMatchId(innings.getMatchId());
@@ -88,8 +94,8 @@ public class WicketService {
         fow.setInningsNumber(innings.getInningsNumber());
         fow.setWicketNumber(wicketNumber);
         fow.setTeamScoreAtFall(teamScoreAtFall);
-        fow.setOverNumber(ball.getOverNumber());
-        fow.setBallNumber(ball.getBallNumber());
+        fow.setOverNumber(ball.getOverNumber() - 1);
+        fow.setBallNumber(over.getLegalBallCount());
         fow.setPlayerOutId(req.getPlayerOutId());
         fow.setBowlerId(req.getBowlerId());
         fow.setFielderId(req.getFielderId());

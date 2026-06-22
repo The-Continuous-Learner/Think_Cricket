@@ -1,19 +1,31 @@
 package com.gmh.cricket_app.service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.gmh.cricket_app.dto.innings.EndInningsRequest;
 import com.gmh.cricket_app.dto.innings.EndInningsResponse;
+import com.gmh.cricket_app.dto.innings.GetInningsListRequest;
+import com.gmh.cricket_app.dto.innings.GetScorecardRequest;
+import com.gmh.cricket_app.dto.innings.InningsSummary;
+import com.gmh.cricket_app.dto.innings.ScoreCardResponse;
 import com.gmh.cricket_app.dto.innings.StartInningsRequest;
 import com.gmh.cricket_app.dto.innings.StartInningsResponse;
+import com.gmh.cricket_app.dto.innings.InningsScoreCard;
 import com.gmh.cricket_app.enums.InningsStatus;
 import com.gmh.cricket_app.enums.MatchStatus;
 import com.gmh.cricket_app.exceptions.BadRequestException;
 import com.gmh.cricket_app.models.Innings;
 import com.gmh.cricket_app.models.Match;
 import com.gmh.cricket_app.models.team.Team;
+import com.gmh.cricket_app.repositories.BattingScoreRepository;
+import com.gmh.cricket_app.repositories.BowlingScoreRepository;
+import com.gmh.cricket_app.repositories.FallOfWicketRepository;
 import com.gmh.cricket_app.repositories.InningsRepository;
 import com.gmh.cricket_app.repositories.MatchRepository;
 import com.gmh.cricket_app.repositories.MatchSquadRepository;
@@ -32,6 +44,9 @@ public class InningsService {
     private final SessionService sessionService;
     private final TeamRepository teamRepo;
     private final MatchSquadRepository matchSquadRepo;
+    private final BattingScoreRepository battingScoreRepo;
+    private final BowlingScoreRepository bowlingScoreRepo;
+    private final FallOfWicketRepository fallOfWicketRepo;
 
     public StartInningsResponse startInnings(StartInningsRequest req) {
 
@@ -84,6 +99,9 @@ public class InningsService {
             Innings previous = existingInnings.get(inningsNumber - 2);
             if (previous.getStatus() != InningsStatus.COMPLETED) {
                 throw new BadRequestException("Innings " + (inningsNumber - 1) + " must be completed before starting innings " + inningsNumber);
+            }
+            if (!isTestMatch(match) && previous.getBattingTeamId().equals(req.getBattingTeamId())) {
+                throw new BadRequestException("The same team cannot bat in consecutive innings in a limited-overs match");
             }
         }
 
@@ -155,6 +173,89 @@ public class InningsService {
                 innings.getOversCompleted(),
                 innings.getStatus()
         );
+    }
+
+    public List<InningsSummary> getInningsList(GetInningsListRequest req) {
+        sessionService.validateSession(req.getSessionToken());
+
+        Match match = matchRepo.findById(req.getMatchId())
+                .orElseThrow(() -> new BadRequestException("Match not found"));
+
+        Map<String, String> teamNames = teamRepo.findAllById(Set.of(match.getTeamAId(), match.getTeamBId()))
+                .stream().collect(Collectors.toMap(Team::getId, Team::getName));
+
+        List<Innings> inningsList = inningsRepo.findByMatchIdOrderByInningsNumberAsc(req.getMatchId());
+
+        List<InningsSummary> result = new ArrayList<>();
+        for (int i = 0; i < inningsList.size(); i++) {
+            Innings inn = inningsList.get(i);
+            Integer target = i > 0 ? inningsList.get(i - 1).getTotalRuns() + 1 : null;
+            result.add(new InningsSummary(
+                    inn.getId(),
+                    inn.getInningsNumber(),
+                    inn.getBattingTeamId(),
+                    teamNames.get(inn.getBattingTeamId()),
+                    inn.getBowlingTeamId(),
+                    teamNames.get(inn.getBowlingTeamId()),
+                    inn.getStatus(),
+                    inn.getTotalRuns(),
+                    inn.getWickets(),
+                    inn.getOversCompleted(),
+                    inn.getExtras(),
+                    target
+            ));
+        }
+        return result;
+    }
+
+    public ScoreCardResponse getScorecard(GetScorecardRequest req) {
+        sessionService.validateSession(req.getSessionToken());
+
+        Match match = matchRepo.findById(req.getMatchId())
+                .orElseThrow(() -> new BadRequestException("Match not found"));
+
+        Map<String, String> teamNames = teamRepo.findAllById(Set.of(match.getTeamAId(), match.getTeamBId()))
+                .stream().collect(Collectors.toMap(Team::getId, Team::getName));
+
+        List<Innings> inningsList = inningsRepo.findByMatchIdOrderByInningsNumberAsc(req.getMatchId());
+
+        List<InningsScoreCard> cards = inningsList.stream()
+                .map(inn -> new InningsScoreCard(
+                        inn.getId(),
+                        inn.getInningsNumber(),
+                        inn.getBattingTeamId(),
+                        inn.getBowlingTeamId(),
+                        battingScoreRepo.findByInningsIdOrderByBattingPositionAsc(inn.getId()),
+                        bowlingScoreRepo.findByInningsId(inn.getId()),
+                        fallOfWicketRepo.findByInningsIdOrderByWicketNumberAsc(inn.getId()),
+                        inn.getTotalRuns(),
+                        inn.getWickets(),
+                        inn.getOversCompleted()
+                ))
+                .collect(Collectors.toList());
+
+        String resultText = computeResultText(match, inningsList, teamNames);
+
+        return new ScoreCardResponse(matchId, match.getStatus().name(), resultText, cards);
+    }
+
+    private String computeResultText(Match match, List<Innings> inningsList, Map<String, String> teamNames) {
+        if (match.getStatus() != MatchStatus.COMPLETED || inningsList.size() < 2) {
+            return null;
+        }
+        Innings inn1 = inningsList.get(0);
+        Innings inn2 = inningsList.get(1);
+        if (inn2.getTotalRuns() > inn1.getTotalRuns()) {
+            int wicketsInHand = 10 - inn2.getWickets();
+            String winner = teamNames.getOrDefault(inn2.getBattingTeamId(), inn2.getBattingTeamId());
+            return winner + " won by " + wicketsInHand + (wicketsInHand == 1 ? " wicket" : " wickets");
+        } else if (inn1.getTotalRuns() > inn2.getTotalRuns()) {
+            int margin = inn1.getTotalRuns() - inn2.getTotalRuns();
+            String winner = teamNames.getOrDefault(inn1.getBattingTeamId(), inn1.getBattingTeamId());
+            return winner + " won by " + margin + (margin == 1 ? " run" : " runs");
+        } else {
+            return "Match tied";
+        }
     }
 
     private boolean isTestMatch(Match match) {

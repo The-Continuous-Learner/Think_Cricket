@@ -64,6 +64,9 @@ public class MatchResultService {
         int teamARuns = runsByTeam.getOrDefault(match.getTeamAId(), 0);
         int teamBRuns = runsByTeam.getOrDefault(match.getTeamBId(), 0);
 
+        Map<String, String> teamNames = teamRepo.findAllById(java.util.Set.of(match.getTeamAId(), match.getTeamBId()))
+                .stream().collect(Collectors.toMap(Team::getId, Team::getName));
+
         String winnerTeamId = null;
         String loserTeamId = null;
         boolean isDraw = false;
@@ -76,24 +79,23 @@ public class MatchResultService {
             winnerTeamId = teamARuns > teamBRuns ? match.getTeamAId() : match.getTeamBId();
             loserTeamId = winnerTeamId.equals(match.getTeamAId()) ? match.getTeamBId() : match.getTeamAId();
 
+            String winnerName = teamNames.getOrDefault(winnerTeamId, winnerTeamId);
             Innings lastInnings = innings.get(innings.size() - 1);
             int runMargin = Math.abs(teamARuns - teamBRuns);
 
             if (winnerTeamId.equals(lastInnings.getBattingTeamId())) {
-                // Chasing team won — by wickets
                 int wicketsRemaining = 10 - lastInnings.getWickets();
-                resultText = winnerTeamId + " won by " + wicketsRemaining + " wickets";
+                resultText = winnerName + " won by " + wicketsRemaining + " wickets";
             } else {
-                // Defending team won — by runs
                 final String finalWinnerId = winnerTeamId;
                 long winnerInningsCount = innings.stream()
                         .filter(i -> i.getBattingTeamId().equals(finalWinnerId))
                         .count();
 
                 if (isTestMatch(match) && winnerInningsCount == 1) {
-                    resultText = winnerTeamId + " won by an innings and " + runMargin + " runs";
+                    resultText = winnerName + " won by an innings and " + runMargin + " runs";
                 } else {
-                    resultText = winnerTeamId + " won by " + runMargin + " runs";
+                    resultText = winnerName + " won by " + runMargin + " runs";
                 }
             }
         }
@@ -118,8 +120,8 @@ public class MatchResultService {
 
         log.info("Match completed: matchId={}, result={}", match.getId(), resultText);
 
-        String winnerTeamName = winnerTeamId != null ? teamRepo.findById(winnerTeamId).map(Team::getName).orElse(null) : null;
-        String loserTeamName = loserTeamId != null ? teamRepo.findById(loserTeamId).map(Team::getName).orElse(null) : null;
+        String winnerTeamName = winnerTeamId != null ? teamNames.get(winnerTeamId) : null;
+        String loserTeamName = loserTeamId != null ? teamNames.get(loserTeamId) : null;
 
         return new CompleteMatchResponse(
                 match.getId(),
