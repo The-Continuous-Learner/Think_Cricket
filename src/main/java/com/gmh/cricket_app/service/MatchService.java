@@ -173,6 +173,10 @@ public class MatchService {
         Match match = matchRepo.findById(req.getMatchId())
                 .orElseThrow(() -> new BadRequestException("Match not found"));
 
+        if (match.getStatus() == MatchStatus.IN_PROGRESS) {
+            throw new BadRequestException("Cannot delete a match that is IN_PROGRESS");
+        }
+
         wicketRepo.deleteByMatchId(match.getId());
         battingScoreRepo.deleteByMatchId(match.getId());
         bowlingScoreRepo.deleteByMatchId(match.getId());
