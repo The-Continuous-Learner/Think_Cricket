@@ -16,6 +16,7 @@ import com.gmh.cricket_app.models.Match;
 import com.gmh.cricket_app.models.team.Team;
 import com.gmh.cricket_app.repositories.InningsRepository;
 import com.gmh.cricket_app.repositories.MatchRepository;
+import com.gmh.cricket_app.repositories.MatchSquadRepository;
 import com.gmh.cricket_app.repositories.TeamRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class InningsService {
     private final MatchRepository matchRepo;
     private final SessionService sessionService;
     private final TeamRepository teamRepo;
+    private final MatchSquadRepository matchSquadRepo;
 
     public StartInningsResponse startInnings(StartInningsRequest req) {
 
@@ -52,6 +54,14 @@ public class InningsService {
 
         if (!req.getBowlingTeamId().equals(match.getTeamAId()) && !req.getBowlingTeamId().equals(match.getTeamBId())) {
             throw new BadRequestException("Bowling team does not belong to this match");
+        }
+
+        if (!matchSquadRepo.existsByMatchIdAndTeamId(req.getMatchId(), match.getTeamAId())) {
+            throw new BadRequestException("Squad not declared for team A");
+        }
+
+        if (!matchSquadRepo.existsByMatchIdAndTeamId(req.getMatchId(), match.getTeamBId())) {
+            throw new BadRequestException("Squad not declared for team B");
         }
 
         int maxInnings = isTestMatch(match) ? 4 : 2;
