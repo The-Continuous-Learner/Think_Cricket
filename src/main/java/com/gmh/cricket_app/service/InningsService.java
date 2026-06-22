@@ -19,6 +19,8 @@ import com.gmh.cricket_app.dto.innings.StartInningsResponse;
 import com.gmh.cricket_app.dto.innings.InningsScoreCard;
 import com.gmh.cricket_app.enums.InningsStatus;
 import com.gmh.cricket_app.enums.MatchStatus;
+import com.gmh.cricket_app.enums.PlayerRole;
+import com.gmh.cricket_app.models.BattingScore;
 import com.gmh.cricket_app.exceptions.BadRequestException;
 import com.gmh.cricket_app.models.Innings;
 import com.gmh.cricket_app.models.Match;
@@ -159,6 +161,8 @@ public class InningsService {
         innings.setStatus(InningsStatus.COMPLETED);
         inningsRepo.save(innings);
 
+        fillMissingBattingEntries(innings);
+
         log.info("Innings ended: inningsId={}, inningsNumber={}, totalRuns={}, wickets={}, overs={}",
                 innings.getId(), innings.getInningsNumber(), innings.getTotalRuns(),
                 innings.getWickets(), innings.getOversCompleted());
@@ -255,6 +259,41 @@ public class InningsService {
             return winner + " won by " + margin + (margin == 1 ? " run" : " runs");
         } else {
             return "Match tied";
+        }
+    }
+
+    private void fillMissingBattingEntries(Innings innings) {
+        Set<String> alreadyBatted = battingScoreRepo
+                .findByInningsIdOrderByBattingPositionAsc(innings.getId())
+                .stream()
+                .map(BattingScore::getPlayerId)
+                .collect(Collectors.toSet());
+
+        List<String> playingXI = matchSquadRepo
+                .findByMatchIdAndTeamId(innings.getMatchId(), innings.getBattingTeamId())
+                .stream()
+                .filter(s -> s.getRole() == PlayerRole.PLAYING)
+                .map(s -> s.getPlayerId())
+                .collect(Collectors.toList());
+
+        int nextPosition = alreadyBatted.size() + 1;
+        for (String playerId : playingXI) {
+            if (!alreadyBatted.contains(playerId)) {
+                BattingScore bs = new BattingScore();
+                bs.setId(innings.getId() + "-BAT-" + playerId);
+                bs.setMatchId(innings.getMatchId());
+                bs.setInningsId(innings.getId());
+                bs.setInningsNumber(innings.getInningsNumber());
+                bs.setPlayerId(playerId);
+                bs.setBattingPosition(nextPosition++);
+                bs.setRuns(0);
+                bs.setBalls(0);
+                bs.setFours(0);
+                bs.setSixes(0);
+                bs.setOut(false);
+                bs.setStrikeRate(0.0);
+                battingScoreRepo.save(bs);
+            }
         }
     }
 
