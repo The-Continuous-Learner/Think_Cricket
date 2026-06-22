@@ -168,10 +168,14 @@ public class MatchService {
 
     @Transactional
     public void deleteMatch(DeleteMatchRequest req) {
-        sessionService.validateSession(req.getSessionToken());
+        User user = sessionService.validateSession(req.getSessionToken());
 
         Match match = matchRepo.findById(req.getMatchId())
                 .orElseThrow(() -> new BadRequestException("Match not found"));
+
+        if (!user.getId().equals(match.getHostedByUserId())) {
+            throw new BadRequestException("You can only delete matches you have hosted");
+        }
 
         if (match.getStatus() == MatchStatus.IN_PROGRESS) {
             throw new BadRequestException("Cannot delete a match that is IN_PROGRESS");
