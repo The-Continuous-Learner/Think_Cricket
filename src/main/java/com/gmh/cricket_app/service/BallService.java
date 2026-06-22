@@ -2,6 +2,8 @@ package com.gmh.cricket_app.service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -19,11 +21,13 @@ import com.gmh.cricket_app.models.BowlingScore;
 import com.gmh.cricket_app.models.Innings;
 import com.gmh.cricket_app.models.Match;
 import com.gmh.cricket_app.models.Over;
+import com.gmh.cricket_app.enums.PlayerRole;
 import com.gmh.cricket_app.repositories.BallRepository;
 import com.gmh.cricket_app.repositories.BattingScoreRepository;
 import com.gmh.cricket_app.repositories.BowlingScoreRepository;
 import com.gmh.cricket_app.repositories.InningsRepository;
 import com.gmh.cricket_app.repositories.MatchRepository;
+import com.gmh.cricket_app.repositories.MatchSquadRepository;
 import com.gmh.cricket_app.repositories.OverRepository;
 import com.gmh.cricket_app.repositories.TeamPlayerMapperRepository;
 
@@ -43,6 +47,7 @@ public class BallService {
     private final BattingScoreRepository battingScoreRepo;
     private final BowlingScoreRepository bowlingScoreRepo;
     private final TeamPlayerMapperRepository teamPlayerMapperRepo;
+    private final MatchSquadRepository matchSquadRepo;
     private final SessionService sessionService;
 
     @Transactional
@@ -165,6 +170,7 @@ public class BallService {
             }
             innings.setStatus(InningsStatus.COMPLETED);
             inningsRepo.save(innings);
+            fillMissingBattingEntries(innings);
             inningsCompleted = true;
             log.info("Innings auto-ended ({}): inningsId={}", inningsEndReason, innings.getId());
         }
@@ -322,5 +328,40 @@ public class BallService {
             case NO_BALL -> ball.getRuns() + 1;
             case BYE, LEG_BYE -> 0;
         };
+    }
+
+    private void fillMissingBattingEntries(Innings innings) {
+        Set<String> alreadyBatted = battingScoreRepo
+                .findByInningsIdOrderByBattingPositionAsc(innings.getId())
+                .stream()
+                .map(BattingScore::getPlayerId)
+                .collect(Collectors.toSet());
+
+        List<String> playingXI = matchSquadRepo
+                .findByMatchIdAndTeamId(innings.getMatchId(), innings.getBattingTeamId())
+                .stream()
+                .filter(s -> s.getRole() == PlayerRole.PLAYING)
+                .map(s -> s.getPlayerId())
+                .collect(Collectors.toList());
+
+        int nextPosition = alreadyBatted.size() + 1;
+        for (String playerId : playingXI) {
+            if (!alreadyBatted.contains(playerId)) {
+                BattingScore bs = new BattingScore();
+                bs.setId(innings.getId() + "-BAT-" + playerId);
+                bs.setMatchId(innings.getMatchId());
+                bs.setInningsId(innings.getId());
+                bs.setInningsNumber(innings.getInningsNumber());
+                bs.setPlayerId(playerId);
+                bs.setBattingPosition(nextPosition++);
+                bs.setRuns(0);
+                bs.setBalls(0);
+                bs.setFours(0);
+                bs.setSixes(0);
+                bs.setOut(false);
+                bs.setStrikeRate(0.0);
+                battingScoreRepo.save(bs);
+            }
+        }
     }
 }
