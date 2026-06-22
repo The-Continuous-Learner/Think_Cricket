@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.gmh.cricket_app.dto.toss.ConductTossRequest;
 import com.gmh.cricket_app.dto.toss.ConductTossResponse;
+import com.gmh.cricket_app.dto.toss.FlipCoinRequest;
 import com.gmh.cricket_app.dto.toss.GetTossDetailsRequest;
 import com.gmh.cricket_app.enums.TossResult;
 import com.gmh.cricket_app.service.TossService;
@@ -31,8 +32,8 @@ public class TossController {
         return tossService.getToss(req.getSessionToken(), req.getMatchId());
     }
 
-    @GetMapping("/flip")
-    public TossResult flipCoin(@RequestBody String sessionToken) {
-        return tossService.flipCoin(sessionToken);
+    @PostMapping("/flip")
+    public TossResult flipCoin(@RequestBody FlipCoinRequest req) {
+        return tossService.flipCoin(req.getSessionToken());
     }
 }
