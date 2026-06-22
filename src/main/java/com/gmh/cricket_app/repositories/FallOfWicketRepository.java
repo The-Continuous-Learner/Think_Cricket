@@ -11,4 +11,6 @@ public interface FallOfWicketRepository extends JpaRepository<FallOfWicket, Stri
     List<FallOfWicket> findByInningsIdOrderByWicketNumberAsc(String inningsId);
 
     long countByInningsId(String inningsId);
+
+    void deleteByMatchId(String matchId);
 }

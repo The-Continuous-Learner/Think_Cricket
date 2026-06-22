@@ -16,4 +16,6 @@ public interface BallRepository extends JpaRepository<Ball, String> {
     List<Ball> findByInningsIdOrderByOverNumberAscBallNumberAsc(String inningsId);
 
     Optional<Ball> findTopByInningsIdOrderByOverNumberDescBallNumberDesc(String inningsId);
+
+    void deleteByMatchId(String matchId);
 }

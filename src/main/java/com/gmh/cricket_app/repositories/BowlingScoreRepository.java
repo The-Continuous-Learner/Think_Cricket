@@ -12,4 +12,6 @@ public interface BowlingScoreRepository extends JpaRepository<BowlingScore, Stri
     Optional<BowlingScore> findByInningsIdAndBowlerId(String inningsId, String bowlerId);
 
     List<BowlingScore> findByInningsId(String inningsId);
+
+    void deleteByMatchId(String matchId);
 }

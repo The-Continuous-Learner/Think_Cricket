@@ -14,4 +14,6 @@ public interface BattingScoreRepository extends JpaRepository<BattingScore, Stri
     List<BattingScore> findByInningsIdOrderByBattingPositionAsc(String inningsId);
 
     long countByInningsId(String inningsId);
+
+    void deleteByMatchId(String matchId);
 }

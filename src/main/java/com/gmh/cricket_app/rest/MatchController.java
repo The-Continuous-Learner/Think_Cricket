@@ -1,5 +1,6 @@
 package com.gmh.cricket_app.rest;
 
+import com.gmh.cricket_app.dto.match.DeleteMatchRequest;
 import com.gmh.cricket_app.dto.match.EndMatchRequest;
 import com.gmh.cricket_app.dto.match.EndMatchResponse;
 import com.gmh.cricket_app.dto.match.HostMatchRequest;
@@ -21,6 +22,7 @@ import com.gmh.cricket_app.service.MatchService;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -70,6 +72,12 @@ public class MatchController {
     @GetMapping("/recent")
     public List<MatchSummary> getRecentMatches(@RequestBody MatchListRequest request) {
         return matchReadService.getRecentMatches(request.getSessionToken());
+    }
+
+    @DeleteMapping("/delete")
+    public ResponseEntity<Void> deleteMatch(@RequestBody DeleteMatchRequest request) {
+        matchService.deleteMatch(request);
+        return ResponseEntity.noContent().build();
     }
 }
 

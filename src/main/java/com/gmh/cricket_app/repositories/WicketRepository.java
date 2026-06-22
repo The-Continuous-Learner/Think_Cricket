@@ -12,4 +12,6 @@ public interface WicketRepository extends JpaRepository<Wicket, String> {
     List<Wicket> findByInningsId(String inningsId);
 
     Optional<Wicket> findByBallId(String ballId);
+
+    void deleteByMatchId(String matchId);
 }

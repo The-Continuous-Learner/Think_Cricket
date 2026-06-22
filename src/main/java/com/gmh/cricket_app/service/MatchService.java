@@ -3,6 +3,7 @@ package com.gmh.cricket_app.service;
 import java.util.List;
 import java.util.Map;
 
+import com.gmh.cricket_app.dto.match.DeleteMatchRequest;
 import com.gmh.cricket_app.dto.match.EndMatchRequest;
 import com.gmh.cricket_app.dto.match.EndMatchResponse;
 import com.gmh.cricket_app.dto.match.HostMatchRequest;
@@ -15,8 +16,14 @@ import com.gmh.cricket_app.exceptions.BadRequestException;
 import com.gmh.cricket_app.models.Match;
 import com.gmh.cricket_app.models.User.User;
 import com.gmh.cricket_app.models.team.Team;
+import com.gmh.cricket_app.repositories.BallRepository;
+import com.gmh.cricket_app.repositories.BattingScoreRepository;
+import com.gmh.cricket_app.repositories.BowlingScoreRepository;
+import com.gmh.cricket_app.repositories.FallOfWicketRepository;
 import com.gmh.cricket_app.repositories.MatchRepository;
+import com.gmh.cricket_app.repositories.MatchSummaryRepository;
 import com.gmh.cricket_app.repositories.TeamRepository;
+import com.gmh.cricket_app.repositories.WicketRepository;
 import com.gmh.cricket_app.util.CommonUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -24,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -33,6 +41,12 @@ public class MatchService {
     private final MatchRepository matchRepo;
     private final SessionService sessionService;
     private final TeamRepository teamRepo;
+    private final WicketRepository wicketRepo;
+    private final BattingScoreRepository battingScoreRepo;
+    private final BowlingScoreRepository bowlingScoreRepo;
+    private final FallOfWicketRepository fallOfWicketRepo;
+    private final BallRepository ballRepo;
+    private final MatchSummaryRepository matchSummaryRepo;
 
     @Value("${cricket.match.id-length}")
     private int matchIdLength;
@@ -150,6 +164,25 @@ public class MatchService {
                 match.getActualEndTime(),
                 match.getEndedByUserId()
         );
+    }
+
+    @Transactional
+    public void deleteMatch(DeleteMatchRequest req) {
+        sessionService.validateSession(req.getSessionToken());
+
+        Match match = matchRepo.findById(req.getMatchId())
+                .orElseThrow(() -> new BadRequestException("Match not found"));
+
+        wicketRepo.deleteByMatchId(match.getId());
+        battingScoreRepo.deleteByMatchId(match.getId());
+        bowlingScoreRepo.deleteByMatchId(match.getId());
+        fallOfWicketRepo.deleteByMatchId(match.getId());
+        matchSummaryRepo.deleteByMatchId(match.getId());
+        ballRepo.deleteByMatchId(match.getId());
+
+        matchRepo.delete(match);
+
+        log.info("Match deleted: matchId={}", match.getId());
     }
 
     public MatchDetailsResponse getMatchDetails(String sessionToken, String matchId) {
