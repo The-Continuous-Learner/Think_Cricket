@@ -16,6 +16,7 @@ import com.gmh.cricket_app.dto.player.GetAllPlayersRequest;
 import com.gmh.cricket_app.dto.player.GetPlayerRequest;
 import com.gmh.cricket_app.dto.player.GetPlayerTeamsRequest;
 import com.gmh.cricket_app.dto.player.GetPlayersByNameRequest;
+import com.gmh.cricket_app.dto.player.PagedPlayersResponse;
 import com.gmh.cricket_app.dto.player.PlayerTeamSummary;
 import com.gmh.cricket_app.dto.player.SavePlayerRequest;
 import com.gmh.cricket_app.dto.player.UpdatePlayerRequest;
@@ -44,8 +45,8 @@ public class PlayerController {
     }
 
     @GetMapping("/get-all")
-    public List<Player> getAllPlayers(@RequestBody GetAllPlayersRequest req) {
-        return playerService.getAllPlayers(req.getSessionToken());
+    public PagedPlayersResponse getAllPlayers(@RequestBody GetAllPlayersRequest req) {
+        return playerService.getAllPlayers(req);
     }
 
     @GetMapping("/get-by-name")

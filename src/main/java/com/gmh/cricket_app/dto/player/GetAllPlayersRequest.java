@@ -7,4 +7,6 @@ import lombok.Setter;
 @Setter
 public class GetAllPlayersRequest {
     private String sessionToken;
+    private int page = 0;
+    private int size = 20;
 }

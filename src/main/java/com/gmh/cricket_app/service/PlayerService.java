@@ -3,12 +3,15 @@ package com.gmh.cricket_app.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.stream.Collectors;
 
 import com.gmh.cricket_app.dto.player.DeletePlayerRequest;
+import com.gmh.cricket_app.dto.player.GetAllPlayersRequest;
 import com.gmh.cricket_app.dto.player.GetPlayerTeamsRequest;
+import com.gmh.cricket_app.dto.player.PagedPlayersResponse;
 import com.gmh.cricket_app.dto.player.PlayerTeamSummary;
 import com.gmh.cricket_app.dto.player.SavePlayerRequest;
 import com.gmh.cricket_app.dto.player.UpdatePlayerRequest;
@@ -49,9 +52,10 @@ public class PlayerService {
         return playerRepository.findById(id);
     }
 
-    public List<Player> getAllPlayers(String sessionToken) {
-        String userId = sessionService.validateSession(sessionToken).getId();
-        return playerRepository.findByCreatedByUserId(userId);
+    public PagedPlayersResponse getAllPlayers(GetAllPlayersRequest req) {
+        String userId = sessionService.validateSession(req.getSessionToken()).getId();
+        var page = playerRepository.findByCreatedByUserId(userId, PageRequest.of(req.getPage(), req.getSize()));
+        return new PagedPlayersResponse(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
     }
 
     public List<Player> getPlayersByName(String sessionToken, String name) {
