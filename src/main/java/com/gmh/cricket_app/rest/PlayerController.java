@@ -14,7 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.gmh.cricket_app.dto.player.DeletePlayerRequest;
 import com.gmh.cricket_app.dto.player.GetAllPlayersRequest;
 import com.gmh.cricket_app.dto.player.GetPlayerRequest;
+import com.gmh.cricket_app.dto.player.GetPlayerTeamsRequest;
 import com.gmh.cricket_app.dto.player.GetPlayersByNameRequest;
+import com.gmh.cricket_app.dto.player.PlayerTeamSummary;
 import com.gmh.cricket_app.dto.player.SavePlayerRequest;
 import com.gmh.cricket_app.dto.player.UpdatePlayerRequest;
 import com.gmh.cricket_app.models.Player;
@@ -63,5 +65,10 @@ public class PlayerController {
     public ResponseEntity<Void> deletePlayer(@RequestBody DeletePlayerRequest req) {
         playerService.deletePlayer(req);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/teams")
+    public List<PlayerTeamSummary> getTeamsForPlayer(@RequestBody GetPlayerTeamsRequest req) {
+        return playerService.getTeamsForPlayer(req);
     }
 }

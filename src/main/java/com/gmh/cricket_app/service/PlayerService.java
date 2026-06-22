@@ -5,12 +5,18 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
+import java.util.stream.Collectors;
+
 import com.gmh.cricket_app.dto.player.DeletePlayerRequest;
+import com.gmh.cricket_app.dto.player.GetPlayerTeamsRequest;
+import com.gmh.cricket_app.dto.player.PlayerTeamSummary;
 import com.gmh.cricket_app.dto.player.SavePlayerRequest;
 import com.gmh.cricket_app.dto.player.UpdatePlayerRequest;
 import com.gmh.cricket_app.exceptions.BadRequestException;
 import com.gmh.cricket_app.models.Player;
 import com.gmh.cricket_app.repositories.PlayerRepository;
+import com.gmh.cricket_app.repositories.TeamPlayerMapperRepository;
+import com.gmh.cricket_app.repositories.TeamRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +28,8 @@ public class PlayerService {
 
     private final PlayerRepository playerRepository;
     private final SessionService sessionService;
+    private final TeamPlayerMapperRepository teamPlayerMapperRepository;
+    private final TeamRepository teamRepository;
 
     public Player savePlayer(String sessionToken, SavePlayerRequest req) {
         String userId = sessionService.validateSession(sessionToken).getId();
@@ -70,5 +78,16 @@ public class PlayerService {
                 .orElseThrow(() -> new BadRequestException("Player not found"));
         playerRepository.delete(player);
         log.info("Player deleted: playerId={}", req.getPlayerId());
+    }
+
+    public List<PlayerTeamSummary> getTeamsForPlayer(GetPlayerTeamsRequest req) {
+        sessionService.validateSession(req.getSessionToken());
+        List<String> teamIds = teamPlayerMapperRepository.findByPlayerId(req.getPlayerId())
+                .stream()
+                .map(mapper -> mapper.getTeamId())
+                .collect(Collectors.toList());
+        return teamRepository.findAllById(teamIds).stream()
+                .map(team -> new PlayerTeamSummary(team.getId(), team.getName()))
+                .collect(Collectors.toList());
     }
 }
