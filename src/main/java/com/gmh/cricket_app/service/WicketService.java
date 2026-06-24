@@ -35,6 +35,10 @@ public class WicketService {
             WicketType.BOWLED, WicketType.CAUGHT, WicketType.LBW,
             WicketType.STUMPED, WicketType.HIT_WICKET);
 
+    private static final Set<WicketType> BOWLER_NOT_REQUIRED = Set.of(
+            WicketType.RUN_OUT, WicketType.OBSTRUCTING_FIELD,
+            WicketType.RETIRED_HURT, WicketType.TIMED_OUT);
+
     private final BallRepository ballRepo;
     private final WicketRepository wicketRepo;
     private final FallOfWicketRepository fallOfWicketRepo;
@@ -49,6 +53,10 @@ public class WicketService {
     public RecordWicketResponse recordWicket(RecordWicketRequest req) {
 
         sessionService.validateSession(req.getSessionToken());
+
+        if (req.getBowlerId() == null && !BOWLER_NOT_REQUIRED.contains(req.getType())) {
+            throw new BadRequestException("Bowler ID is required for wicket type: " + req.getType());
+        }
 
         Ball ball = ballRepo.findById(req.getBallId())
                 .orElseThrow(() -> new BadRequestException("Ball not found"));
@@ -112,7 +120,7 @@ public class WicketService {
                 });
 
         // --- Credit bowler wicket (only for bowler-attributed dismissals) ---
-        if (BOWLER_CREDITED.contains(req.getType()) && req.getBowlerId() != null) {
+        if (BOWLER_CREDITED.contains(req.getType())) {
             bowlingScoreRepo.findByInningsIdAndBowlerId(innings.getId(), req.getBowlerId())
                     .ifPresent(bs -> {
                         bs.setWickets(bs.getWickets() + 1);
