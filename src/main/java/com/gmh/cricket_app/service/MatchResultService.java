@@ -47,22 +47,10 @@ public class MatchResultService {
 
         List<Innings> innings = inningsRepo.findByMatchIdOrderByInningsNumberAsc(req.getMatchId());
 
-        if (innings.size() < 2) {
-            throw new BadRequestException("At least 2 innings must be completed before finalizing the match");
-        }
-
         boolean hasActive = innings.stream().anyMatch(i -> i.getStatus() == InningsStatus.ACTIVE);
         if (hasActive) {
             throw new BadRequestException("Cannot complete match while an innings is in progress");
         }
-
-        // Aggregate runs per team
-        Map<String, Integer> runsByTeam = innings.stream()
-                .collect(Collectors.groupingBy(Innings::getBattingTeamId,
-                        Collectors.summingInt(Innings::getTotalRuns)));
-
-        int teamARuns = runsByTeam.getOrDefault(match.getTeamAId(), 0);
-        int teamBRuns = runsByTeam.getOrDefault(match.getTeamBId(), 0);
 
         Map<String, String> teamNames = teamRepo.findAllById(java.util.Set.of(match.getTeamAId(), match.getTeamBId()))
                 .stream().collect(Collectors.toMap(Team::getId, Team::getName));
@@ -72,30 +60,42 @@ public class MatchResultService {
         boolean isDraw = false;
         String resultText;
 
-        if (teamARuns == teamBRuns) {
+        if (innings.size() < 2) {
             isDraw = true;
-            resultText = "Match tied";
+            resultText = "No result";
         } else {
-            winnerTeamId = teamARuns > teamBRuns ? match.getTeamAId() : match.getTeamBId();
-            loserTeamId = winnerTeamId.equals(match.getTeamAId()) ? match.getTeamBId() : match.getTeamAId();
+            Map<String, Integer> runsByTeam = innings.stream()
+                    .collect(Collectors.groupingBy(Innings::getBattingTeamId,
+                            Collectors.summingInt(Innings::getTotalRuns)));
 
-            String winnerName = teamNames.getOrDefault(winnerTeamId, winnerTeamId);
-            Innings lastInnings = innings.get(innings.size() - 1);
-            int runMargin = Math.abs(teamARuns - teamBRuns);
+            int teamARuns = runsByTeam.getOrDefault(match.getTeamAId(), 0);
+            int teamBRuns = runsByTeam.getOrDefault(match.getTeamBId(), 0);
 
-            if (winnerTeamId.equals(lastInnings.getBattingTeamId())) {
-                int wicketsRemaining = 10 - lastInnings.getWickets();
-                resultText = winnerName + " won by " + wicketsRemaining + " wickets";
+            if (teamARuns == teamBRuns) {
+                isDraw = true;
+                resultText = "Match tied";
             } else {
-                final String finalWinnerId = winnerTeamId;
-                long winnerInningsCount = innings.stream()
-                        .filter(i -> i.getBattingTeamId().equals(finalWinnerId))
-                        .count();
+                winnerTeamId = teamARuns > teamBRuns ? match.getTeamAId() : match.getTeamBId();
+                loserTeamId = winnerTeamId.equals(match.getTeamAId()) ? match.getTeamBId() : match.getTeamAId();
 
-                if (isTestMatch(match) && winnerInningsCount == 1) {
-                    resultText = winnerName + " won by an innings and " + runMargin + " runs";
+                String winnerName = teamNames.getOrDefault(winnerTeamId, winnerTeamId);
+                Innings lastInnings = innings.get(innings.size() - 1);
+                int runMargin = Math.abs(teamARuns - teamBRuns);
+
+                if (winnerTeamId.equals(lastInnings.getBattingTeamId())) {
+                    int wicketsRemaining = 10 - lastInnings.getWickets();
+                    resultText = winnerName + " won by " + wicketsRemaining + " wickets";
                 } else {
-                    resultText = winnerName + " won by " + runMargin + " runs";
+                    final String finalWinnerId = winnerTeamId;
+                    long winnerInningsCount = innings.stream()
+                            .filter(i -> i.getBattingTeamId().equals(finalWinnerId))
+                            .count();
+
+                    if (isTestMatch(match) && winnerInningsCount == 1) {
+                        resultText = winnerName + " won by an innings and " + runMargin + " runs";
+                    } else {
+                        resultText = winnerName + " won by " + runMargin + " runs";
+                    }
                 }
             }
         }

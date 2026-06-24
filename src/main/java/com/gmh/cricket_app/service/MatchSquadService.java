@@ -31,10 +31,18 @@ import com.gmh.cricket_app.repositories.TeamPlayerMapperRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.beans.factory.annotation.Value;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MatchSquadService {
+
+    @Value("${cricket.squad.playing-xi-size}")
+    private int playingXiSize;
+
+    @Value("${cricket.squad.max-size}")
+    private int maxSquadSize;
 
     private final MatchSquadRepository matchSquadRepo;
     private final MatchSubstitutionRepository matchSubstitutionRepo;
@@ -66,6 +74,15 @@ public class MatchSquadService {
             if (!teamPlayerMapperRepo.existsByTeamIdAndPlayerId(req.getTeamId(), playerId)) {
                 throw new BadRequestException("Player " + playerId + " does not belong to team " + req.getTeamId());
             }
+        }
+
+        if (req.getPlayers().size() > maxSquadSize) {
+            throw new BadRequestException("Squad cannot exceed " + maxSquadSize + " players");
+        }
+
+        long playingCount = req.getPlayers().stream().filter(p -> p.getRole() == PlayerRole.PLAYING).count();
+        if (playingCount != playingXiSize) {
+            throw new BadRequestException("Exactly " + playingXiSize + " players must have role PLAYING, got " + playingCount);
         }
 
         long captainCount = req.getPlayers().stream().filter(p -> p.isCaptain()).count();

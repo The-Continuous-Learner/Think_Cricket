@@ -43,3 +43,6 @@ cricket:
     id-length: 12
   team:
     id-length: 8
+  squad:
+    playing-xi-size: 11
+    max-size: 15
