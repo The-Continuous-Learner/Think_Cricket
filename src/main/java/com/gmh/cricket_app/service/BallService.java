@@ -23,9 +23,11 @@ import com.gmh.cricket_app.models.Match;
 import com.gmh.cricket_app.models.Over;
 import com.gmh.cricket_app.cache.InningsListCache;
 import com.gmh.cricket_app.enums.PlayerRole;
+import com.gmh.cricket_app.models.CurrentBattingState;
 import com.gmh.cricket_app.repositories.BallRepository;
 import com.gmh.cricket_app.repositories.BattingScoreRepository;
 import com.gmh.cricket_app.repositories.BowlingScoreRepository;
+import com.gmh.cricket_app.repositories.CurrentBattingStateRepository;
 import com.gmh.cricket_app.repositories.InningsRepository;
 import com.gmh.cricket_app.repositories.MatchRepository;
 import com.gmh.cricket_app.repositories.MatchSquadRepository;
@@ -49,6 +51,7 @@ public class BallService {
     private final BowlingScoreRepository bowlingScoreRepo;
     private final TeamPlayerMapperRepository teamPlayerMapperRepo;
     private final MatchSquadRepository matchSquadRepo;
+    private final CurrentBattingStateRepository currentBattingStateRepo;
     private final InningsListCache inningsListCache;
     private final SessionService sessionService;
 
@@ -114,6 +117,13 @@ public class BallService {
         ball.setNonStrikerId(req.getNonStrikerId());
         ball.setWicket(req.isWicket());
         ballRepo.save(ball);
+
+        // --- Update current batting state ---
+        CurrentBattingState battingState = currentBattingStateRepo.findById(innings.getId())
+                .orElse(new CurrentBattingState(innings.getId(), null, null));
+        battingState.setStrikerId(req.getBatsmanId());
+        battingState.setNonStrikerId(req.getNonStrikerId());
+        currentBattingStateRepo.save(battingState);
 
         // --- Update Over ---
         over.setTotalRuns(over.getTotalRuns() + totalRuns);

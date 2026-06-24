@@ -11,12 +11,17 @@ import org.springframework.stereotype.Service;
 
 import com.gmh.cricket_app.cache.InningsListCache;
 import com.gmh.cricket_app.cache.ScorecardCache;
+import com.gmh.cricket_app.dto.innings.CurrentBatsmenRequest;
+import com.gmh.cricket_app.dto.innings.CurrentBatsmenResponse;
+import com.gmh.cricket_app.dto.innings.EligibleBatsman;
+import com.gmh.cricket_app.dto.innings.EligibleBatsmenRequest;
 import com.gmh.cricket_app.dto.innings.EndInningsRequest;
 import com.gmh.cricket_app.dto.innings.EndInningsResponse;
 import com.gmh.cricket_app.dto.innings.GetInningsListRequest;
 import com.gmh.cricket_app.dto.innings.GetScorecardRequest;
 import com.gmh.cricket_app.dto.innings.InningsSummary;
 import com.gmh.cricket_app.dto.innings.ScoreCardResponse;
+import com.gmh.cricket_app.dto.innings.SetBatsmenRequest;
 import com.gmh.cricket_app.dto.innings.StartInningsRequest;
 import com.gmh.cricket_app.dto.innings.StartInningsResponse;
 import com.gmh.cricket_app.dto.innings.InningsScoreCard;
@@ -24,16 +29,20 @@ import com.gmh.cricket_app.enums.InningsStatus;
 import com.gmh.cricket_app.enums.MatchStatus;
 import com.gmh.cricket_app.enums.PlayerRole;
 import com.gmh.cricket_app.models.BattingScore;
+import com.gmh.cricket_app.models.CurrentBattingState;
 import com.gmh.cricket_app.exceptions.BadRequestException;
 import com.gmh.cricket_app.models.Innings;
 import com.gmh.cricket_app.models.Match;
+import com.gmh.cricket_app.models.Player;
 import com.gmh.cricket_app.models.team.Team;
 import com.gmh.cricket_app.repositories.BattingScoreRepository;
 import com.gmh.cricket_app.repositories.BowlingScoreRepository;
+import com.gmh.cricket_app.repositories.CurrentBattingStateRepository;
 import com.gmh.cricket_app.repositories.FallOfWicketRepository;
 import com.gmh.cricket_app.repositories.InningsRepository;
 import com.gmh.cricket_app.repositories.MatchRepository;
 import com.gmh.cricket_app.repositories.MatchSquadRepository;
+import com.gmh.cricket_app.repositories.PlayerRepository;
 import com.gmh.cricket_app.repositories.TeamRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -52,6 +61,8 @@ public class InningsService {
     private final BattingScoreRepository battingScoreRepo;
     private final BowlingScoreRepository bowlingScoreRepo;
     private final FallOfWicketRepository fallOfWicketRepo;
+    private final CurrentBattingStateRepository currentBattingStateRepo;
+    private final PlayerRepository playerRepo;
     private final ScorecardCache scorecardCache;
     private final InningsListCache inningsListCache;
 
@@ -320,6 +331,117 @@ public class InningsService {
                 battingScoreRepo.save(bs);
             }
         }
+    }
+
+    public CurrentBatsmenResponse setBatsmen(SetBatsmenRequest req) {
+        sessionService.validateSession(req.getSessionToken());
+
+        Innings innings = inningsRepo.findById(req.getInningsId())
+                .orElseThrow(() -> new BadRequestException("Innings not found"));
+
+        if (innings.getStatus() != InningsStatus.ACTIVE) {
+            throw new BadRequestException("Innings is not active");
+        }
+
+        if (req.getStrikerId().equals(req.getNonStrikerId())) {
+            throw new BadRequestException("Striker and non-striker must be different players");
+        }
+
+        Set<String> playingIds = matchSquadRepo
+                .findByMatchIdAndTeamId(innings.getMatchId(), innings.getBattingTeamId())
+                .stream()
+                .filter(s -> s.getRole() == PlayerRole.PLAYING)
+                .map(s -> s.getPlayerId())
+                .collect(Collectors.toSet());
+
+        if (!playingIds.contains(req.getStrikerId())) {
+            throw new BadRequestException("Striker is not in the playing XI");
+        }
+        if (!playingIds.contains(req.getNonStrikerId())) {
+            throw new BadRequestException("Non-striker is not in the playing XI");
+        }
+
+        battingScoreRepo.findByInningsIdAndPlayerId(innings.getId(), req.getStrikerId())
+                .ifPresent(bs -> {
+                    if (bs.isOut()) throw new BadRequestException("Striker is already dismissed");
+                });
+        battingScoreRepo.findByInningsIdAndPlayerId(innings.getId(), req.getNonStrikerId())
+                .ifPresent(bs -> {
+                    if (bs.isOut()) throw new BadRequestException("Non-striker is already dismissed");
+                });
+
+        CurrentBattingState state = currentBattingStateRepo.findById(innings.getId())
+                .orElse(new CurrentBattingState(innings.getId(), null, null));
+        state.setStrikerId(req.getStrikerId());
+        state.setNonStrikerId(req.getNonStrikerId());
+        currentBattingStateRepo.save(state);
+
+        log.info("Batsmen set: inningsId={}, striker={}, nonStriker={}", innings.getId(), req.getStrikerId(), req.getNonStrikerId());
+
+        Map<String, String> names = playerRepo.findAllById(List.of(req.getStrikerId(), req.getNonStrikerId()))
+                .stream().collect(Collectors.toMap(Player::getId, Player::getName));
+
+        return new CurrentBatsmenResponse(
+                innings.getId(),
+                req.getStrikerId(),
+                names.get(req.getStrikerId()),
+                req.getNonStrikerId(),
+                names.get(req.getNonStrikerId())
+        );
+    }
+
+    public CurrentBatsmenResponse getCurrentBatsmen(CurrentBatsmenRequest req) {
+        sessionService.validateSession(req.getSessionToken());
+
+        Innings innings = inningsRepo.findById(req.getInningsId())
+                .orElseThrow(() -> new BadRequestException("Innings not found"));
+
+        CurrentBattingState state = currentBattingStateRepo.findById(innings.getId())
+                .orElseThrow(() -> new BadRequestException("No batting state found — no balls have been bowled yet"));
+
+        Map<String, String> names = playerRepo.findAllById(List.of(state.getStrikerId(), state.getNonStrikerId()))
+                .stream().collect(Collectors.toMap(Player::getId, Player::getName));
+
+        return new CurrentBatsmenResponse(
+                innings.getId(),
+                state.getStrikerId(),
+                names.get(state.getStrikerId()),
+                state.getNonStrikerId(),
+                names.get(state.getNonStrikerId())
+        );
+    }
+
+    public List<EligibleBatsman> getEligibleBatsmen(EligibleBatsmenRequest req) {
+        sessionService.validateSession(req.getSessionToken());
+
+        Innings innings = inningsRepo.findById(req.getInningsId())
+                .orElseThrow(() -> new BadRequestException("Innings not found"));
+
+        Set<String> dismissedIds = battingScoreRepo
+                .findByInningsIdOrderByBattingPositionAsc(innings.getId())
+                .stream()
+                .filter(BattingScore::isOut)
+                .map(BattingScore::getPlayerId)
+                .collect(Collectors.toSet());
+
+        Set<String> atCreaseIds = currentBattingStateRepo.findById(innings.getId())
+                .map(s -> Set.of(s.getStrikerId(), s.getNonStrikerId()))
+                .orElse(Set.of());
+
+        List<String> eligibleIds = matchSquadRepo
+                .findByMatchIdAndTeamId(innings.getMatchId(), innings.getBattingTeamId())
+                .stream()
+                .filter(s -> s.getRole() == PlayerRole.PLAYING)
+                .map(s -> s.getPlayerId())
+                .filter(id -> !dismissedIds.contains(id) && !atCreaseIds.contains(id))
+                .collect(Collectors.toList());
+
+        Map<String, String> names = playerRepo.findAllById(eligibleIds)
+                .stream().collect(Collectors.toMap(Player::getId, Player::getName));
+
+        return eligibleIds.stream()
+                .map(id -> new EligibleBatsman(id, names.get(id)))
+                .collect(Collectors.toList());
     }
 
     private boolean isTestMatch(Match match) {

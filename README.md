@@ -2,7 +2,7 @@
 
 > Cricket app for nerds.
 
-A REST API backend for managing cricket matches end-to-end — from registering players and teams, through toss and innings, all the way to ball-by-ball scoring and match results. Built with Spring Boot 4, MySQL, and Flyway.
+A REST API backend for managing cricket matches end-to-end — from registering players and teams, through toss and squad declaration, all the way to ball-by-ball scoring, wickets, and match results. Built with Spring Boot 4, MySQL, and Flyway.
 
 ---
 
@@ -15,6 +15,7 @@ A REST API backend for managing cricket matches end-to-end — from registering 
 | Database | MySQL 8+ |
 | ORM | Spring Data JPA / Hibernate |
 | Migrations | Flyway |
+| Cache | Caffeine |
 | Build | Maven |
 | Utilities | Lombok |
 
@@ -82,6 +83,7 @@ Every protected endpoint requires a `sessionToken` field in the **request body**
 | `WicketType` | `BOWLED` `CAUGHT` `RUN_OUT` `LBW` `STUMPED` `HIT_WICKET` `RETIRED_HURT` `OBSTRUCTING_FIELD` `TIMED_OUT` |
 | `PlayerTypes` | `Batsman` `Bowler` `AllRounder` `WicketKeeper` |
 | `Gender` | `Male` `Female` |
+| `PlayerRole` | `PLAYING` `SUBSTITUTE` |
 
 ---
 
@@ -138,14 +140,6 @@ Every protected endpoint requires a `sessionToken` field in the **request body**
 | POST | `/teams/remove-player` | Remove a player from a team |
 | GET | `/teams/players` | List all players in a team |
 
-**Get team players response:**
-```json
-{
-  "teamId": "",
-  "players": [{ "playerId": "", "name": "", "type": "Batsman" }]
-}
-```
-
 ---
 
 ### Matches — `/matches`
@@ -158,7 +152,6 @@ Every protected endpoint requires a `sessionToken` field in the **request body**
 | GET | `/matches/getDetails` | Get full match details |
 | GET | `/matches/list` | List all matches hosted by the session user |
 | GET | `/matches/live-state` | Get real-time match state (innings, over, last batsmen) |
-| GET | `/matches/score` | Get full scorecard for a match |
 
 **Host a match:**
 ```json
@@ -236,12 +229,59 @@ Set `parentMatchId` to link a super over back to its parent match.
 
 ---
 
+### Squad — `/squad`
+
+Squads must be declared for both teams before an innings can start.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/squad/declare` | Declare the squad for a team |
+| POST | `/squad/substitute` | Record a player substitution |
+| GET | `/squad/get` | Get the declared squad for a team |
+| GET | `/squad/current-xi` | Get the current playing XI (after substitutions) |
+
+**Declare squad:**
+```json
+{
+  "sessionToken": "",
+  "matchId": "",
+  "teamId": "",
+  "players": [
+    { "playerId": "", "role": "PLAYING", "captain": false, "viceCaptain": false }
+  ]
+}
+```
+
+**Validation rules:**
+- Exactly **11** players must have `role: PLAYING`
+- Total squad size cannot exceed **15** players (configurable)
+- Exactly **1** captain must be declared
+- Captain and vice-captain must be different players
+- All players must belong to the team
+
+**Get squad / current XI response:**
+```json
+{
+  "matchId": "",
+  "teamId": "",
+  "players": [
+    { "playerId": "", "name": "", "role": "PLAYING", "captain": true, "viceCaptain": false }
+  ]
+}
+```
+
+`/squad/current-xi` reflects any substitutions applied on top of the declared squad.
+
+---
+
 ### Innings — `/innings`
 
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/innings/start` | Start a new innings |
 | POST | `/innings/end` | End the current innings |
+| GET | `/innings/list` | Get all innings for a match (lightweight, cached) |
+| GET | `/innings/scorecard` | Get full scorecard per innings (cached for completed matches) |
 
 **Start innings:**
 ```json
@@ -253,12 +293,68 @@ Set `parentMatchId` to link a super over back to its parent match.
 }
 ```
 
-Batting and bowling teams are always provided explicitly. All formats (T20, ODI, Test, super over, follow-on) are handled without special-casing.
+Batting and bowling teams are always provided explicitly. All formats (T20, ODI, Test, super over, follow-on) are handled without special-casing. The same team cannot bat in consecutive innings in a limited-overs match.
 
 **Auto-end:** An innings ends automatically when:
 - 10 wickets fall
 - The over limit is reached (limited-overs only)
 - The target is chased (innings 2, limited-overs only)
+
+When an innings ends (manually or automatically), any playing XI batsmen who did not face a single ball are automatically added to the scorecard with `0 (0b) not out`.
+
+**Innings list response:**
+```json
+[
+  {
+    "inningsId": "",
+    "inningsNumber": 1,
+    "battingTeamId": "",
+    "battingTeamName": "",
+    "bowlingTeamId": "",
+    "bowlingTeamName": "",
+    "status": "COMPLETED",
+    "totalRuns": 145,
+    "wickets": 6,
+    "oversCompleted": 20,
+    "extras": 8,
+    "target": null
+  }
+]
+```
+
+**Scorecard response:**
+```json
+{
+  "matchId": "",
+  "matchStatus": "COMPLETED",
+  "resultText": "Australia won by 4 wickets",
+  "innings": [
+    {
+      "inningsId": "",
+      "inningsNumber": 1,
+      "battingTeamId": "",
+      "bowlingTeamId": "",
+      "batting": [...],
+      "bowling": [...],
+      "fallOfWickets": [...],
+      "totalRuns": 145,
+      "wickets": 6,
+      "oversCompleted": 20
+    }
+  ]
+}
+```
+
+**Result text formats:**
+- `"<Team> won by X wickets"` — chasing team wins
+- `"<Team> won by X runs"` — defending team wins
+- `"<Team> won by an innings and X runs"` — Test match
+- `"Match tied"`
+- `"No result"` — match completed with fewer than 2 innings (abandoned, rain, etc.)
+
+**Caching:**
+- `/innings/list` — cached per match with a **15-second TTL** (configurable); evicted immediately on every ball recorded
+- `/innings/scorecard` — cached indefinitely per match once status is `COMPLETED`; bypassed for live matches
 
 ---
 
@@ -274,6 +370,8 @@ Batting and bowling teams are always provided explicitly. All formats (T20, ODI,
 ```json
 { "sessionToken": "", "inningsId": "", "bowlerId": "" }
 ```
+
+**Validation:** A bowler cannot bowl consecutive overs.
 
 **Auto-end:** An over completes automatically after 6 legal deliveries.
 
@@ -367,6 +465,8 @@ Check `overCompleted` and `inningsCompleted` in the response — no need to call
 }
 ```
 
+Fall of wickets are stored as `completedOvers.legalBallInOver` notation (e.g. `0.6` = last ball of over 1).
+
 ---
 
 ### Match Result — `/match-result`
@@ -376,13 +476,7 @@ Check `overCompleted` and `inningsCompleted` in the response — no need to call
 | POST | `/match-result/complete` | Calculate and persist the match result |
 | GET | `/match-result` | Get the persisted result for a match |
 
-Results are calculated once and stored. Subsequent reads return the stored result.
-
-**Result types handled automatically:**
-- Won by X wickets (chasing team wins)
-- Won by X runs (defending team wins)
-- Won by an innings and X runs (Test match)
-- Match tied
+Results are calculated once and stored. Subsequent reads return the stored result. A match can be completed at any point — including before any innings are played (e.g. abandoned after toss), which produces `"No result"`.
 
 ---
 
@@ -398,10 +492,13 @@ Start Match  →  IN_PROGRESS
 Conduct Toss
      │
      ▼
+Declare Squads (both teams, before first innings)
+     │
+     ▼
 Start Innings
      │
      ▼
-Start Over (assign bowler)
+Start Over (assign bowler — cannot bowl consecutive overs)
      │
      ▼
 Record Ball  ──►  [if wicket: true]  ──►  Record Wicket
@@ -431,17 +528,42 @@ End Match  →  COMPLETED
 
 ## Configuration Reference
 
-```yaml
-cricket:
-  match:
-    id-length: 12
-  team:
-    id-length: 8
+All cricket-specific rules are externalised to `application.yaml` — no code changes needed to adjust them.
 
+```yaml
 session:
   duration:
-    ms: 86400000
+    ms: 86400000        # Session TTL (24 hours)
+
+cricket:
+  match:
+    id-length: 12       # Generated match ID length
+  team:
+    id-length: 8        # Generated team ID length
+  squad:
+    playing-xi-size: 11 # Required number of PLAYING role players per squad
+    max-size: 15        # Maximum total squad size (playing + substitutes)
+  cache:
+    scorecard:
+      max-size: 500     # Max completed scorecards held in memory
+      ttl-days: 7       # Eviction TTL for scorecard cache entries
+    innings-list:
+      max-size: 100     # Max innings list entries held in memory
+      ttl-seconds: 15   # Eviction TTL for live innings list cache
 ```
+
+---
+
+## Caching
+
+The two most-read endpoints are cached using Caffeine (in-memory). The adapter pattern is used so the backing store can be swapped to Redis for multi-instance deployments without changing service code.
+
+| Endpoint | Cache | Strategy |
+|---|---|---|
+| `GET /innings/list` | `InningsListCache` | Short TTL (15s) + evict on every ball recorded |
+| `GET /innings/scorecard` | `ScorecardCache` | Permanent (no TTL) for `COMPLETED` matches; bypassed for live matches |
+
+To migrate to Redis: implement `ScorecardCache` and `InningsListCache` as Redis-backed beans and swap the `@Component` annotation.
 
 ---
 
@@ -463,6 +585,10 @@ Migrations live in `src/main/resources/db/migration/` and run automatically on s
 | V10 | Create match_result table |
 | V11 | Add over status and bowler |
 | V12 | Add ball extra_runs, boundary_type, bowler_id |
+| V13 | Add created_by_user_id to player and team |
+| V14 | Add match_squad and match_substitution tables |
+| V15 | Add captain and vice-captain columns to match_squad |
+| V16 | Fix squad foreign key to matches table |
 
 ---
 
@@ -477,6 +603,7 @@ src/main/java/com/gmh/cricket_app/
 ├── dto/           # Request / response objects
 ├── enums/         # Enumerations
 ├── exceptions/    # Custom exceptions
+├── cache/         # Cache interfaces and Caffeine implementations
 ├── config/        # Configuration classes
 └── util/          # Utilities
 ```
