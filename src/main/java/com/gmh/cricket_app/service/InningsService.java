@@ -189,6 +189,7 @@ public class InningsService {
 
         Optional<List<InningsSummary>> cached = inningsListCache.get(req.getMatchId());
         if (cached.isPresent()) {
+            log.info("InningsList cache hit: matchId={}", req.getMatchId());
             return cached.get();
         }
 
@@ -227,15 +228,14 @@ public class InningsService {
     public ScoreCardResponse getScorecard(GetScorecardRequest req) {
         sessionService.validateSession(req.getSessionToken());
 
+        Optional<ScoreCardResponse> cached = scorecardCache.get(req.getMatchId());
+        if (cached.isPresent()) {
+            log.info("Scorecard cache hit: matchId={}", req.getMatchId());
+            return cached.get();
+        }
+
         Match match = matchRepo.findById(req.getMatchId())
                 .orElseThrow(() -> new BadRequestException("Match not found"));
-
-        if (match.getStatus() == MatchStatus.COMPLETED) {
-            Optional<ScoreCardResponse> cached = scorecardCache.get(req.getMatchId());
-            if (cached.isPresent()) {
-                return cached.get();
-            }
-        }
 
         Map<String, String> teamNames = teamRepo.findAllById(Set.of(match.getTeamAId(), match.getTeamBId()))
                 .stream().collect(Collectors.toMap(Team::getId, Team::getName));
