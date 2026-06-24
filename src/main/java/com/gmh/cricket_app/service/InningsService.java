@@ -3,11 +3,14 @@ package com.gmh.cricket_app.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import com.gmh.cricket_app.cache.InningsListCache;
+import com.gmh.cricket_app.cache.ScorecardCache;
 import com.gmh.cricket_app.dto.innings.EndInningsRequest;
 import com.gmh.cricket_app.dto.innings.EndInningsResponse;
 import com.gmh.cricket_app.dto.innings.GetInningsListRequest;
@@ -49,6 +52,8 @@ public class InningsService {
     private final BattingScoreRepository battingScoreRepo;
     private final BowlingScoreRepository bowlingScoreRepo;
     private final FallOfWicketRepository fallOfWicketRepo;
+    private final ScorecardCache scorecardCache;
+    private final InningsListCache inningsListCache;
 
     public StartInningsResponse startInnings(StartInningsRequest req) {
 
@@ -182,6 +187,11 @@ public class InningsService {
     public List<InningsSummary> getInningsList(GetInningsListRequest req) {
         sessionService.validateSession(req.getSessionToken());
 
+        Optional<List<InningsSummary>> cached = inningsListCache.get(req.getMatchId());
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+
         Match match = matchRepo.findById(req.getMatchId())
                 .orElseThrow(() -> new BadRequestException("Match not found"));
 
@@ -209,6 +219,8 @@ public class InningsService {
                     target
             ));
         }
+
+        inningsListCache.put(req.getMatchId(), result);
         return result;
     }
 
@@ -217,6 +229,13 @@ public class InningsService {
 
         Match match = matchRepo.findById(req.getMatchId())
                 .orElseThrow(() -> new BadRequestException("Match not found"));
+
+        if (match.getStatus() == MatchStatus.COMPLETED) {
+            Optional<ScoreCardResponse> cached = scorecardCache.get(req.getMatchId());
+            if (cached.isPresent()) {
+                return cached.get();
+            }
+        }
 
         Map<String, String> teamNames = teamRepo.findAllById(Set.of(match.getTeamAId(), match.getTeamBId()))
                 .stream().collect(Collectors.toMap(Team::getId, Team::getName));
@@ -240,7 +259,13 @@ public class InningsService {
 
         String resultText = computeResultText(match, inningsList, teamNames);
 
-        return new ScoreCardResponse(matchId, match.getStatus().name(), resultText, cards);
+        ScoreCardResponse response = new ScoreCardResponse(req.getMatchId(), match.getStatus().name(), resultText, cards);
+
+        if (match.getStatus() == MatchStatus.COMPLETED) {
+            scorecardCache.put(req.getMatchId(), response);
+        }
+
+        return response;
     }
 
     private String computeResultText(Match match, List<Innings> inningsList, Map<String, String> teamNames) {

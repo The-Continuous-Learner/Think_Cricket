@@ -21,6 +21,7 @@ import com.gmh.cricket_app.models.BowlingScore;
 import com.gmh.cricket_app.models.Innings;
 import com.gmh.cricket_app.models.Match;
 import com.gmh.cricket_app.models.Over;
+import com.gmh.cricket_app.cache.InningsListCache;
 import com.gmh.cricket_app.enums.PlayerRole;
 import com.gmh.cricket_app.repositories.BallRepository;
 import com.gmh.cricket_app.repositories.BattingScoreRepository;
@@ -48,6 +49,7 @@ public class BallService {
     private final BowlingScoreRepository bowlingScoreRepo;
     private final TeamPlayerMapperRepository teamPlayerMapperRepo;
     private final MatchSquadRepository matchSquadRepo;
+    private final InningsListCache inningsListCache;
     private final SessionService sessionService;
 
     @Transactional
@@ -135,6 +137,7 @@ public class BallService {
         upsertBowlingScore(innings, effectiveBowlerId, req, legalDelivery, bowlerRuns);
 
         inningsRepo.save(innings);
+        inningsListCache.evict(innings.getMatchId());
 
         // --- Auto-complete over on 6th legal ball ---
         boolean overCompleted = false;

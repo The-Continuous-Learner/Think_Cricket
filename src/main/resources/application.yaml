@@ -46,3 +46,10 @@ cricket:
   squad:
     playing-xi-size: 11
     max-size: 15
+  cache:
+    scorecard:
+      max-size: 500
+      ttl-days: 7
+    innings-list:
+      max-size: 100
+      ttl-seconds: 15
