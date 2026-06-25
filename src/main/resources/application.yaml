@@ -3,9 +3,9 @@ spring:
     name: cricket-app
 
   datasource:
-    url: jdbc:mysql://localhost:3306/cricket?useSSL=false&serverTimezone=UTC
-    username: myapp_user
-    password: StrongPassword123!  ## Only for development, use environment variables or secrets management in production
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/cricket}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
 
   jackson:
     deserialization:
@@ -17,7 +17,7 @@ spring:
     properties:
       hibernate:
         globally_quoted_identifiers: true
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
   flyway:
     enabled: true

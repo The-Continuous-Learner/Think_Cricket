@@ -1,2 +1,2 @@
-ALTER TABLE `matches`
-  ADD COLUMN `follow_on_enforced` TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE matches
+  ADD COLUMN follow_on_enforced boolean NOT NULL DEFAULT false;
