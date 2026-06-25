@@ -11,6 +11,8 @@ public interface BallRepository extends JpaRepository<Ball, String> {
 
     long countByOverId(String overId);
 
+    long countByInningsId(String inningsId);
+
     List<Ball> findByOverIdOrderByBallNumberAsc(String overId);
 
     List<Ball> findByInningsIdOrderByOverNumberAscBallNumberAsc(String inningsId);
