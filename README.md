@@ -2,7 +2,15 @@
 
 > Cricket app for nerds.
 
-A REST API backend for managing cricket matches end-to-end — from registering players and teams, through toss and squad declaration, all the way to ball-by-ball scoring, wickets, and match results. Built with Spring Boot 4, MySQL, and Flyway.
+A REST API backend for managing cricket matches end-to-end — from registering players and teams, through toss and squad declaration, all the way to ball-by-ball scoring, wickets, and match results.
+
+---
+
+## Live App
+
+**[https://think-cricket-frontend.vercel.app](https://think-cricket-frontend.vercel.app)**
+
+Register an account, create teams, add players, host a match, and score it ball by ball.
 
 ---
 
@@ -12,10 +20,10 @@ A REST API backend for managing cricket matches end-to-end — from registering 
 |---|---|
 | Framework | Spring Boot 4.0.2 |
 | Language | Java 17 |
-| Database | MySQL 8+ |
+| Database | PostgreSQL (Supabase in production) |
 | ORM | Spring Data JPA / Hibernate |
 | Migrations | Flyway |
-| Cache | Caffeine |
+| Cache | Caffeine (adapter pattern — Redis-swappable) |
 | Build | Maven |
 | Utilities | Lombok |
 
@@ -26,28 +34,32 @@ A REST API backend for managing cricket matches end-to-end — from registering 
 ### Prerequisites
 
 - Java 17+
-- MySQL 8+
+- PostgreSQL 14+ (or Docker)
 - Maven 3.8+
 
 ### Database Setup
 
-```sql
-CREATE DATABASE cricket;
-CREATE USER 'myapp_user'@'localhost' IDENTIFIED BY 'your_password';
-GRANT ALL PRIVILEGES ON cricket.* TO 'myapp_user'@'localhost';
+**Docker (quickest):**
+```bash
+docker run --name cricket-db -e POSTGRES_PASSWORD=password -e POSTGRES_DB=cricket -p 5432:5432 -d postgres:16
 ```
+
+**Or local PostgreSQL install** — create a database named `cricket`.
 
 ### Configuration
 
-Update `src/main/resources/application.yaml`:
+Set these environment variables before running (or export them in your shell):
 
-```yaml
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/cricket?useSSL=false&serverTimezone=UTC
-    username: myapp_user
-    password: your_password
+```bash
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/cricket
+SPRING_DATASOURCE_USERNAME=postgres
+SPRING_DATASOURCE_PASSWORD=password
 ```
+
+If no env vars are set, the app falls back to:
+- URL: `jdbc:postgresql://localhost:5432/cricket`
+- Username: `postgres`
+- Password: *(empty)*
 
 ### Run
 
@@ -55,7 +67,7 @@ spring:
 mvn spring-boot:run
 ```
 
-Flyway will automatically create all tables on first boot.
+Flyway runs all 17 migrations automatically on first boot — no manual schema setup required.
 
 ---
 
@@ -282,6 +294,9 @@ Squads must be declared for both teams before an innings can start.
 | POST | `/innings/end` | End the current innings |
 | GET | `/innings/list` | Get all innings for a match (lightweight, cached) |
 | GET | `/innings/scorecard` | Get full scorecard per innings (cached for completed matches) |
+| POST | `/innings/set-batsmen` | Declare the current striker and non-striker |
+| GET | `/innings/current-batsmen` | Get who is currently at the crease |
+| GET | `/innings/eligible-batsmen` | Get players eligible to come in next |
 
 **Start innings:**
 ```json
@@ -293,7 +308,7 @@ Squads must be declared for both teams before an innings can start.
 }
 ```
 
-Batting and bowling teams are always provided explicitly. All formats (T20, ODI, Test, super over, follow-on) are handled without special-casing. The same team cannot bat in consecutive innings in a limited-overs match.
+Batting and bowling teams are always provided explicitly. All formats (T20, ODI, Test, super over, follow-on) are handled without special-casing.
 
 **Auto-end:** An innings ends automatically when:
 - 10 wickets fall
@@ -301,6 +316,34 @@ Batting and bowling teams are always provided explicitly. All formats (T20, ODI,
 - The target is chased (innings 2, limited-overs only)
 
 When an innings ends (manually or automatically), any playing XI batsmen who did not face a single ball are automatically added to the scorecard with `0 (0b) not out`.
+
+**Set batsmen** — call this after a wicket falls, before the next ball:
+```json
+{
+  "sessionToken": "",
+  "inningsId": "",
+  "strikerId": "",
+  "nonStrikerId": ""
+}
+```
+
+**Current batsmen response:**
+```json
+{
+  "inningsId": "",
+  "strikerId": "",
+  "strikerName": "",
+  "nonStrikerId": "",
+  "nonStrikerName": ""
+}
+```
+
+**Eligible batsmen response** — playing XI minus dismissed minus currently at crease:
+```json
+[
+  { "playerId": "", "playerName": "" }
+]
+```
 
 **Innings list response:**
 ```json
@@ -350,7 +393,7 @@ When an innings ends (manually or automatically), any playing XI batsmen who did
 - `"<Team> won by X runs"` — defending team wins
 - `"<Team> won by an innings and X runs"` — Test match
 - `"Match tied"`
-- `"No result"` — match completed with fewer than 2 innings (abandoned, rain, etc.)
+- `"No result"` — match completed with fewer than 2 innings
 
 **Caching:**
 - `/innings/list` — cached per match with a **15-second TTL** (configurable); evicted immediately on every ball recorded
@@ -375,6 +418,22 @@ When an innings ends (manually or automatically), any playing XI batsmen who did
 
 **Auto-end:** An over completes automatically after 6 legal deliveries.
 
+**Balls response:**
+```json
+{
+  "overId": "",
+  "overNumber": 3,
+  "inningsId": "",
+  "bowlerId": "",
+  "bowlerName": "",
+  "status": "ACTIVE",
+  "legalBallCount": 4,
+  "totalRuns": 9,
+  "wickets": 1,
+  "balls": [...]
+}
+```
+
 ---
 
 ### Balls — `/balls`
@@ -382,6 +441,7 @@ When an innings ends (manually or automatically), any playing XI batsmen who did
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/balls/record` | Record a single delivery |
+| POST | `/balls/undo` | Undo the last recorded ball |
 
 **Record a ball:**
 ```json
@@ -406,7 +466,7 @@ When an innings ends (manually or automatically), any playing XI batsmen who did
 - `bowlerId` — optional override; defaults to the over's assigned bowler
 - `wicket` — set `true` if a wicket fell; follow up immediately with `POST /wickets/record`
 
-**Response:**
+**Record ball response:**
 ```json
 {
   "ballId": "",
@@ -425,7 +485,29 @@ When an innings ends (manually or automatically), any playing XI batsmen who did
 }
 ```
 
-Check `overCompleted` and `inningsCompleted` in the response — no need to call `/overs/end` or `/innings/end` when these are `true`.
+Check `overCompleted` and `inningsCompleted` — no need to call `/overs/end` or `/innings/end` when these are `true`.
+
+**Undo last ball** — atomically reverses the last delivery in the innings:
+```json
+{ "sessionToken": "", "inningsId": "" }
+```
+
+**Undo response:**
+```json
+{
+  "undoneBallId": "",
+  "inningsId": "",
+  "overReopened": false,
+  "inningsReopened": false,
+  "wicketReversed": false
+}
+```
+
+- `overReopened: true` — the ball was the last ball of a completed over; the over is back to `ACTIVE`
+- `inningsReopened: true` — the ball had auto-completed the innings; innings is back to `ACTIVE`
+- `wicketReversed: true` — the wicket details (`/wickets/record`) were also rolled back; the dismissed batsman is restored
+
+Undo also reverses maiden credit, batting/bowling aggregates, fall of wicket, and current batting state — all atomically.
 
 ---
 
@@ -476,7 +558,7 @@ Fall of wickets are stored as `completedOvers.legalBallInOver` notation (e.g. `0
 | POST | `/match-result/complete` | Calculate and persist the match result |
 | GET | `/match-result` | Get the persisted result for a match |
 
-Results are calculated once and stored. Subsequent reads return the stored result. A match can be completed at any point — including before any innings are played (e.g. abandoned after toss), which produces `"No result"`.
+Results are calculated once and stored. Subsequent reads return the stored result. A match can be completed at any point — including before any innings are played (abandoned after toss), which produces `"No result"`.
 
 ---
 
@@ -498,12 +580,18 @@ Declare Squads (both teams, before first innings)
 Start Innings
      │
      ▼
+Set Batsmen (declare opener striker + non-striker)
+     │
+     ▼
 Start Over (assign bowler — cannot bowl consecutive overs)
      │
      ▼
 Record Ball  ──►  [if wicket: true]  ──►  Record Wicket
+     │                                          │
+     │                                          ▼
+     │                                   Set Batsmen (new batsman in)
      │
-     │  (repeat per ball)
+     │  (repeat per ball; undo available at any point)
      │
      ▼
 Over auto-completes after 6 legal balls
@@ -515,7 +603,7 @@ Start next Over  (repeat)
 Innings auto-ends on: 10 wickets / over limit / target chased
      │
      ▼
-Start 2nd Innings  (repeat from Over step)
+Start 2nd Innings  (repeat from Set Batsmen step)
      │
      ▼
 Complete Match  →  Result persisted
@@ -523,6 +611,51 @@ Complete Match  →  Result persisted
      ▼
 End Match  →  COMPLETED
 ```
+
+---
+
+## Current Batting State
+
+The API maintains a persistent record of who is at the crease, stored in the `current_batting_state` table. This solves the problem of frontend state being lost on refresh — the UI can always recover the current pair from the server.
+
+| Endpoint | When to call |
+|---|---|
+| `POST /innings/set-batsmen` | After innings start (openers), after every wicket (new batsman in) |
+| `GET /innings/current-batsmen` | On page load / refresh to restore scorer state |
+| `GET /innings/eligible-batsmen` | To populate the "select next batsman" dropdown |
+
+`POST /balls/record` also updates the batting state on every delivery, so if the app never crashes between balls the state stays current automatically.
+
+---
+
+## Undo Last Ball
+
+`POST /balls/undo` reverses the last recorded delivery in an innings atomically in a single transaction. Everything rolled back:
+
+- Ball deleted
+- Innings aggregates (runs, extras, wickets) decremented
+- Over aggregates (runs, wickets, legal ball count) decremented
+- Batting score (runs, balls, fours, sixes, strike rate) decremented
+- Bowling score (runs conceded, balls bowled, overs, economy) decremented
+- Maiden credit reversed if the over was a maiden when completed
+- Wicket details (`Wicket`, `FallOfWicket` rows) deleted if `/wickets/record` was called
+- Dismissed batsman restored (`BattingScore.isOut` set back to `false`)
+- Current batting state restored to the ball's batsmanId/nonStrikerId
+- Innings and over statuses restored if they were auto-completed by that ball
+- Caches evicted
+
+---
+
+## Caching
+
+The two most-read endpoints are cached using Caffeine (in-memory). The adapter pattern (`InningsListCache` / `ScorecardCache` interfaces) allows the backing store to be swapped to Redis for multi-instance deployments without changing any service code.
+
+| Endpoint | Cache | Strategy |
+|---|---|---|
+| `GET /innings/list` | `InningsListCache` | Short TTL (15s) + evict on every ball recorded or undo |
+| `GET /innings/scorecard` | `ScorecardCache` | Permanent (no TTL) for `COMPLETED` matches; bypassed for live matches; evicted on undo if innings was reopened |
+
+To migrate to Redis: implement `ScorecardCache` and `InningsListCache` as Redis-backed beans and swap the `@Component` annotation.
 
 ---
 
@@ -554,19 +687,6 @@ cricket:
 
 ---
 
-## Caching
-
-The two most-read endpoints are cached using Caffeine (in-memory). The adapter pattern is used so the backing store can be swapped to Redis for multi-instance deployments without changing service code.
-
-| Endpoint | Cache | Strategy |
-|---|---|---|
-| `GET /innings/list` | `InningsListCache` | Short TTL (15s) + evict on every ball recorded |
-| `GET /innings/scorecard` | `ScorecardCache` | Permanent (no TTL) for `COMPLETED` matches; bypassed for live matches |
-
-To migrate to Redis: implement `ScorecardCache` and `InningsListCache` as Redis-backed beans and swap the `@Component` annotation.
-
----
-
 ## Database Migrations
 
 Migrations live in `src/main/resources/db/migration/` and run automatically on startup via Flyway.
@@ -574,7 +694,7 @@ Migrations live in `src/main/resources/db/migration/` and run automatically on s
 | Version | Description |
 |---|---|
 | V1 | Initial schema |
-| V2 | Lowercase table names + schema alignment |
+| V2 | Table renames + schema alignment |
 | V3 | Drop status check constraint on matches |
 | V4 | Add toss table |
 | V5 | Add team/status indexes on matches |
@@ -584,11 +704,12 @@ Migrations live in `src/main/resources/db/migration/` and run automatically on s
 | V9 | Cleanup + add parent_match_id |
 | V10 | Create match_result table |
 | V11 | Add over status and bowler |
-| V12 | Add ball extra_runs, boundary_type, bowler_id |
+| V12 | Add ball extra_runs, boundary_type, bowler_id; over legal_ball_count |
 | V13 | Add created_by_user_id to player and team |
 | V14 | Add match_squad and match_substitution tables |
-| V15 | Add captain and vice-captain columns to match_squad |
+| V15 | Add captain and vice-captain to match_squad |
 | V16 | Fix squad foreign key to matches table |
+| V17 | Add current_batting_state table |
 
 ---
 
