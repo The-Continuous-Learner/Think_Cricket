@@ -104,7 +104,7 @@ public class MatchService {
             throw new BadRequestException("Match cannot be started in current state: " + match.getStatus());
         }
 
-        if (matchRepo.existsInProgressMatchInvolvingAnyOf(List.of(match.getTeamAId(), match.getTeamBId())) > 0) {
+        if (matchRepo.existsInProgressMatchInvolvingAnyOf(List.of(match.getTeamAId(), match.getTeamBId()))) {
             log.warn("Start match failed - team already in active match: matchId={}, teamA={}, teamB={}",
                     match.getId(), match.getTeamAId(), match.getTeamBId());
             throw new BadRequestException("One or both teams already have an in-progress match");

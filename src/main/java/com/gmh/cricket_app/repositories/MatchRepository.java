@@ -21,5 +21,5 @@ public interface MatchRepository extends JpaRepository<Match, String> {
                    "SELECT 1 FROM matches WHERE status = 'IN_PROGRESS' " +
                    "AND (team_a_id IN :teams OR team_b_id IN :teams) LIMIT 1)",
            nativeQuery = true)
-    int existsInProgressMatchInvolvingAnyOf(@Param("teams") List<String> teams);
+    boolean existsInProgressMatchInvolvingAnyOf(@Param("teams") List<String> teams);
 }
