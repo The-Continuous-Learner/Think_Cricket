@@ -8,10 +8,11 @@ env:
   AWS_REGION: ap-south-1
   S3_BUCKET: think-cricket-artifacts
   S3_KEY: think-cricket/app.jar
+  JAR_PATH: target/cricket-app-0.0.1-SNAPSHOT.jar
 
 jobs:
   build:
-    name: Build jar and upload to S3
+    name: Build jar
     runs-on: ubuntu-latest
 
     steps:
@@ -27,6 +28,24 @@ jobs:
       - name: Build jar
         run: mvn package -DskipTests --no-transfer-progress
 
+      - name: Upload artifact for upload jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: ${{ env.JAR_PATH }}
+          retention-days: 1
+
+  upload-aws:
+    name: Upload to AWS S3
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download jar
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -34,11 +53,26 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Upload jar to S3
-        run: |
-          aws s3 cp target/cricket-app-0.0.1-SNAPSHOT.jar \
-            s3://${{ env.S3_BUCKET }}/${{ env.S3_KEY }}
+      - name: Upload jar to AWS S3
+        run: aws s3 cp cricket-app-0.0.1-SNAPSHOT.jar s3://${{ env.S3_BUCKET }}/${{ env.S3_KEY }}
 
-      - name: Confirm upload
+  upload-oci:
+    name: Upload to OCI Object Storage
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download jar
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+
+      - name: Upload jar to OCI Object Storage
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.OCI_ARTIFACT_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.OCI_ARTIFACT_SECRET_KEY }}
         run: |
-          aws s3 ls s3://${{ env.S3_BUCKET }}/${{ env.S3_KEY }}
+          aws s3 cp cricket-app-0.0.1-SNAPSHOT.jar \
+            s3://${{ secrets.OCI_ARTIFACT_BUCKET }}/${{ env.S3_KEY }} \
+            --endpoint-url "https://${{ secrets.OCI_NAMESPACE }}.compat.objectstorage.${{ secrets.OCI_REGION }}.oraclecloud.com" \
+            --region ${{ secrets.OCI_REGION }}
