@@ -661,7 +661,7 @@ To migrate to Redis: implement `ScorecardCache` and `InningsListCache` as Redis-
 
 ## Configuration Reference
 
-All cricket-specific rules are externalised to `application.yaml` — no code changes needed to adjust them.
+All cricket-specific rules are externalized to `application.yaml` — no code changes needed to adjust them.
 
 ```yaml
 session:
