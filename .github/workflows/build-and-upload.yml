@@ -3,6 +3,17 @@ name: Build and Upload
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Upload destination"
+        required: true
+        default: both
+        type: choice
+        options:
+          - both
+          - aws
+          - oci
 
 env:
   AWS_REGION: ap-south-1
@@ -39,6 +50,8 @@ jobs:
     name: Upload to AWS S3
     runs-on: ubuntu-latest
     needs: build
+    environment: upload-aws
+    if: github.event_name == 'push' || github.event.inputs.target == 'both' || github.event.inputs.target == 'aws'
 
     steps:
       - name: Download jar
@@ -60,6 +73,8 @@ jobs:
     name: Upload to OCI Object Storage
     runs-on: ubuntu-latest
     needs: build
+    environment: upload-oci
+    if: github.event_name == 'push' || github.event.inputs.target == 'both' || github.event.inputs.target == 'oci'
 
     steps:
       - name: Download jar
@@ -71,6 +86,8 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.OCI_ARTIFACT_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.OCI_ARTIFACT_SECRET_KEY }}
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
         run: |
           aws s3 cp cricket-app-0.0.1-SNAPSHOT.jar \
             s3://${{ secrets.OCI_ARTIFACT_BUCKET }}/${{ env.S3_KEY }} \
